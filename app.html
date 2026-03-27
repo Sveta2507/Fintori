@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Fintori — UK Business Financial Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="logo-name">Fintori</span>
+    <span class="logo-tag">by Fynro Studios Ltd · fintori.co.uk</span>
+  </div>
+  <span class="hdr-badge">Free · No login</span>
+</header>
+
+<div class="prog-bar"><div class="prog-fill" id="prog"></div></div>
+
+<div class="snav" id="snav">
+  <button class="sbtn active" onclick="goTo(1)" id="sb1">1 · Revenue</button>
+  <button class="sbtn" onclick="goTo(2)" id="sb2">2 · Costs</button>
+  <button class="sbtn" onclick="goTo(3)" id="sb3">3 · Business</button>
+  <button class="sbtn" onclick="goTo(4)" id="sb4">4 · Results</button>
+</div>
+
+<main>
+
+<!-- ══ STEP 1: REVENUE ══════════════════════════════════════════════ -->
+<div id="s1" class="ssec active">
+  <div class="privacy">🔒 Your data never leaves this device. No account needed.</div>
+
+  <div class="card">
+    <div class="card-hdr">
+      <div class="cicon">💰</div>
+      <h2>Revenue <span class="sub">last 3 months</span></h2>
+      <span class="step-counter">Step 1 of 3</span>
+    </div>
+    <div class="card-body">
+
+      <div class="tog-row">
+        <span class="tog-lbl">VAT Registered?</span>
+        <label class="toggle"><input type="checkbox" id="vatReg" checked onchange="recalc()"><span class="tog-sl"></span></label>
+      </div>
+
+      <div class="field">
+        <label>Total Sales / Turnover
+          <button class="tip-btn" onclick="tip('t_rev')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_rev">Enter all income including VAT if you're VAT-registered. If you only have a rough figure for all 3 months, divide by 3 and enter the same number each month.</div>
+        <div class="mo-grid">
+          <div><span class="mo-lbl">Month 1</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r1" placeholder="0" oninput="recalc()"></div></div>
+          <div><span class="mo-lbl">Month 2</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r2" placeholder="0" oninput="recalc()"></div></div>
+          <div><span class="mo-lbl">Month 3</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r3" placeholder="0" oninput="recalc()"></div></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="mo-grid">
+        <div><span class="calc-lbl">Mo1 ex-VAT</span><div class="calc-f" id="rn1">£0</div></div>
+        <div><span class="calc-lbl">Mo2 ex-VAT</span><div class="calc-f" id="rn2">£0</div></div>
+        <div><span class="calc-lbl">Mo3 ex-VAT</span><div class="calc-f" id="rn3">£0</div></div>
+      </div>
+
+    </div>
+  </div>
+  <button class="btn btn-navy" onclick="goTo(2)">Next: Your Costs →</button>
+</div>
+
+<!-- ══ STEP 2: COSTS ════════════════════════════════════════════════ -->
+<div id="s2" class="ssec">
+
+  <div class="card">
+    <div class="card-hdr">
+      <div class="cicon">🏭</div>
+      <h2>Direct Costs <span class="sub">monthly average</span></h2>
+      <span class="step-counter">Step 2 of 3</span>
+    </div>
+    <div class="card-body">
+      <div class="field">
+        <label>Materials / Stock / Ingredients
+          <button class="tip-btn" onclick="tip('t_cogs')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_cogs">The cost of what you buy to sell — raw materials, ingredients, stock. Only include costs that directly relate to what you sell. Staff wages go in the next section.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="cogs" placeholder="0"></div>
+      </div>
+      <div class="field">
+        <label>Direct Labour
+          <button class="tip-btn" onclick="tip('t_dlab')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_dlab">Wages of staff who directly make or deliver your product — kitchen staff, production workers. Not office or admin staff.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="dlab" placeholder="0"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">📋</div><h2>Operating Expenses <span class="sub">monthly average</span></h2></div>
+    <div class="card-body">
+
+      <div class="field">
+        <label>Rent & Business Rates
+          <button class="tip-btn" onclick="tip('t_rent')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_rent">Your monthly rent plus business rates. Note: retail, hospitality and leisure businesses get 40% rates relief in 2025/26, capped at £110,000.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="rent" placeholder="0"></div>
+      </div>
+      <div class="field">
+        <label>Staff Wages & Salaries
+          <button class="tip-btn" onclick="tip('t_wages')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_wages">Gross wages for all non-production staff. National Living Wage from Apr 2025: £12.21/hr for staff aged 21+.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="wages" placeholder="0"></div>
+      </div>
+      <div class="field">
+        <label>Employer National Insurance
+          <button class="tip-btn" onclick="tip('t_nic')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_nic">13.8% on each employee's wages above £5,000/yr (from Apr 2025). You can offset up to £10,500/yr via Employment Allowance — claim this through your payroll software.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="nic" placeholder="0"></div>
+      </div>
+      <div class="field">
+        <label>Loan / Finance Repayments
+          <button class="tip-btn" onclick="tip('t_loan')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_loan">Total monthly repayments on all business loans, overdrafts, hire purchase, and credit cards.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="loan" placeholder="0"></div>
+      </div>
+
+      <button class="more-btn" onclick="toggleMore()" id="moreBtn">＋ Add more expenses (utilities, insurance, marketing…)</button>
+      <div class="more-fields" id="moreFields">
+        <div class="divider"></div>
+        <div class="field">
+          <label>Utilities <span style="font-weight:400;color:var(--g400)">(gas, electric, water)</span></label>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="util" placeholder="0"></div>
+        </div>
+        <div class="field">
+          <label>Insurance
+            <button class="tip-btn" onclick="tip('t_ins')">ℹ️</button>
+          </label>
+          <div class="tip-box" id="t_ins">Public liability is recommended. Employer's liability is legally required if you have staff. Professional Indemnity if you give advice.</div>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="ins" placeholder="0"></div>
+        </div>
+        <div class="field">
+          <label>Marketing & Advertising</label>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="mkt" placeholder="0"></div>
+        </div>
+        <div class="field">
+          <label>Professional Fees <span style="font-weight:400;color:var(--g400)">(accountant, solicitor)</span></label>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="prof" placeholder="0"></div>
+        </div>
+        <div class="field">
+          <label>Software & Subscriptions</label>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="sw" placeholder="0"></div>
+        </div>
+        <div class="field">
+          <label>Other Operating Expenses</label>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="other" placeholder="0"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <button class="btn btn-navy" onclick="goTo(3)">Next: Business Details →</button>
+  <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+</div>
+
+<!-- ══ STEP 3: BUSINESS ═════════════════════════════════════════════ -->
+<div id="s3" class="ssec">
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">🏢</div><h2>Your Business <span class="sub">balance sheet snapshot</span></h2><span class="step-counter">Step 3 of 3</span></div>
+    <div class="card-body">
+
+      <div class="field">
+        <label>Industry Sector</label>
+        <select id="sector" class="no-pfx">
+          <option value="hospitality">Hospitality / Food & Drink</option>
+          <option value="retail">Retail — Physical</option>
+          <option value="ecommerce">Retail — E-commerce</option>
+          <option value="construction">Construction</option>
+          <option value="professional">Professional Services</option>
+          <option value="it">IT / Technology</option>
+          <option value="health">Health & Beauty</option>
+          <option value="manufacturing">Manufacturing</option>
+          <option value="transport">Transport & Logistics</option>
+          <option value="education">Education / Training</option>
+          <option value="finance">Financial Services</option>
+          <option value="other">Other / Mixed</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Cash / Bank Balance
+          <button class="tip-btn" onclick="tip('t_cash')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_cash">Total cash across all your business accounts right now. This is used to calculate how many months you can survive without new revenue.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="cash" placeholder="0"></div>
+      </div>
+
+      <div class="field">
+        <label>Debtors / Receivables
+          <button class="tip-btn" onclick="tip('t_deb')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_deb">Money customers owe you but haven't paid yet — outstanding invoices. Used to calculate Debtor Days: how long customers take to pay.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="debtors" placeholder="0"></div>
+      </div>
+
+      <div class="field">
+        <label>Creditors / Payables
+          <button class="tip-btn" onclick="tip('t_cred')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_cred">Money you owe suppliers but haven't paid yet. Used to calculate Working Capital — your ability to pay short-term obligations.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="creditors" placeholder="0"></div>
+      </div>
+
+      <div class="field">
+        <label>Total Business Debt
+          <button class="tip-btn" onclick="tip('t_debt')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_debt">All outstanding loans, overdraft balance, credit cards, hire purchase. Not monthly payments — the total amount still owed.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="debt" placeholder="0"></div>
+      </div>
+
+      <div class="field">
+        <label>Stock / Inventory Value
+          <button class="tip-btn" onclick="tip('t_stock')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_stock">Current value of unsold stock at cost price. Leave blank if you're a service business with no physical stock.</div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="stock" placeholder="0"></div>
+      </div>
+
+      <div class="field">
+        <label>Number of Employees
+          <button class="tip-btn" onclick="tip('t_emp')">ℹ️</button>
+        </label>
+        <div class="tip-box" id="t_emp">Full-time equivalent (FTE). Part-time staff: count each as a fraction — e.g. 2 part-timers working 20hrs each = 1 FTE.</div>
+        <div class="inp-wrap"><span class="inp-pfx">#</span><input type="number" id="emp" placeholder="0" style="padding-left:28px"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <button class="btn btn-navy" onclick="generateResults()">🎯 &nbsp;Get My Analysis</button>
+  <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+</div>
+
+<!-- ══ LOADING ═══════════════════════════════════════════════════════ -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p style="font-size:14px;color:var(--g600);font-weight:500">Analysing your business...</p>
+  <p style="font-size:12px;color:var(--g400);margin-top:6px">Comparing to UK sector benchmarks · ONS 2024/25</p>
+</div>
+
+<!-- ══ RESULTS ════════════════════════════════════════════════════════ -->
+<div id="results">
+
+  <!-- 1. VERDICT -->
+  <div id="verdict" class="verdict good" style="margin-bottom:12px">
+    <div class="verdict-icon" id="vicon">✅</div>
+    <div class="verdict-title" id="vtitle">Business looks healthy</div>
+    <div class="verdict-body" id="vbody">Your key metrics are within acceptable ranges. See below for specific indicators and what to action this week.</div>
+    <div class="verdict-ai" id="verdictAI">
+      <div class="verdict-ai-loading" id="verdictAILoading">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:.85">
+          <div class="ai-spinner-dot"></div><div class="ai-spinner-dot"></div><div class="ai-spinner-dot"></div>
+          <span>AI is analysing your business...</span>
+        </div>
+      </div>
+      <div class="verdict-ai-content" id="verdictAIContent">
+        <div class="verdict-ai-row" id="vai_problem"></div>
+        <div class="verdict-ai-row" id="vai_opportunity"></div>
+        <div class="verdict-ai-row" id="vai_steps"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. KPI SUMMARY -->
+  <div class="score-card">
+    <div class="score-ttl">3-Month Summary</div>
+    <div class="kpi-grid">
+      <div><div class="kpi-lbl">Total Revenue</div><div class="kpi-val" id="k_rev">£0</div></div>
+      <div><div class="kpi-lbl">Net Profit / (Loss)</div><div class="kpi-val" id="k_profit">£0</div></div>
+      <div><div class="kpi-lbl">Avg Net Margin</div><div class="kpi-val" id="k_margin">0%</div></div>
+      <div><div class="kpi-lbl">EBITDA (monthly)</div><div class="kpi-val" id="k_ebitda">£0</div></div>
+      <div><div class="kpi-lbl">Cash Runway</div><div class="kpi-val" id="k_runway">—</div></div>
+      <div><div class="kpi-lbl">Breakeven / Month</div><div class="kpi-val" id="k_be">£0</div></div>
+    </div>
+  </div>
+
+  <!-- BREAKEVEN EXPLAINER -->
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">⚖️</div><h2>Breakeven Analysis</h2></div>
+    <div class="be-box">
+      <div>
+        <div class="be-lbl">Monthly Breakeven Revenue</div>
+        <div class="be-sub" id="be_sub">The minimum you need to cover all costs</div>
+      </div>
+      <div class="be-val" id="be_val">£0</div>
+    </div>
+    <div class="card-body" style="padding-top:0">
+      <div id="be_detail" style="font-size:13px;color:var(--g600);line-height:1.7"></div>
+    </div>
+  </div>
+
+  <!-- 3. HEALTH INDICATORS -->
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">🎯</div><h2>Health Indicators</h2></div>
+    <div class="sec-lbl">PROFITABILITY</div>
+    <div id="tl_profit"></div>
+    <div class="sec-lbl">CASH & LIQUIDITY</div>
+    <div id="tl_cash"></div>
+    <div class="sec-lbl">EFFICIENCY</div>
+    <div id="tl_eff"></div>
+  </div>
+
+  <!-- 4. BENCHMARKS -->
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">📊</div><h2>vs UK Sector Average</h2></div>
+    <div class="card-body" id="bench"></div>
+  </div>
+
+  <!-- 5. COST BREAKDOWN -->
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">🥧</div><h2>Cost Breakdown <span class="sub">monthly</span></h2></div>
+    <div class="card-body" id="costs"></div>
+  </div>
+
+  <!-- VAT WARNING -->
+  <div class="vat-warn" id="vatWarn">
+    <p>⚠️ VAT Threshold Alert</p>
+    <p>Your 3-month revenue suggests you may be approaching the £90,000 annual VAT threshold. You must register with HMRC within 30 days of exceeding it.</p>
+  </div>
+
+  <!-- 6. RECOMMENDED ACTIONS -->
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">⚡</div><h2>Recommended Actions</h2></div>
+    <div id="acts"></div>
+  </div>
+
+  <!-- 7. TAX GUIDE -->
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">💷</div><h2>UK Tax Reference 2025/26</h2></div>
+    <div>
+      <div class="tax-sec">
+        <div class="tax-sec-ttl">Corporation Tax</div>
+        <div class="tax-row"><span class="tx-lbl">Small profits rate (≤ £50,000)</span><span class="tx-v">19%</span></div>
+        <div class="tax-row"><span class="tx-lbl">Main rate (≥ £250,000)</span><span class="tx-v">25%</span></div>
+        <div class="tax-row"><span class="tx-lbl">Marginal relief (£50k–£250k)</span><span class="tx-v">19–25%</span></div>
+        <div class="tax-row"><span class="tx-lbl">Payment deadline</span><span class="tx-v">9 months + 1 day</span></div>
+      </div>
+      <div class="tax-sec">
+        <div class="tax-sec-ttl">VAT</div>
+        <div class="tax-row"><span class="tx-lbl">Registration threshold</span><span class="tx-v tv-a">£90,000 / yr</span></div>
+        <div class="tax-row"><span class="tx-lbl">Standard rate</span><span class="tx-v">20%</span></div>
+        <div class="tax-row"><span class="tx-lbl">Making Tax Digital</span><span class="tx-v tv-a">Mandatory</span></div>
+        <div class="tax-row"><span class="tx-lbl">Late payment penalty</span><span class="tx-v tv-r">5% after 15 days</span></div>
+      </div>
+      <div class="tax-sec">
+        <div class="tax-sec-ttl">National Insurance — Employer</div>
+        <div class="tax-row"><span class="tx-lbl">Employer NIC rate</span><span class="tx-v">13.8%</span></div>
+        <div class="tax-row"><span class="tx-lbl">Secondary threshold (Apr 2025)</span><span class="tx-v tv-r">£5,000 / yr</span></div>
+        <div class="tax-row"><span class="tx-lbl">Employment Allowance</span><span class="tx-v tv-g">£10,500 / yr</span></div>
+        <div class="tax-row"><span class="tx-lbl">National Living Wage (21+)</span><span class="tx-v tv-a">£12.21 / hr</span></div>
+        <div class="tax-row"><span class="tx-lbl">NLW (18–20 yrs)</span><span class="tx-v">£10.00 / hr</span></div>
+      </div>
+      <div class="tax-sec">
+        <div class="tax-sec-ttl">Business Rates 2025/26</div>
+        <div class="tax-row"><span class="tx-lbl">Retail / Hosp / Leisure relief</span><span class="tx-v tv-g">40% discount</span></div>
+        <div class="tax-row"><span class="tx-lbl">Cap per business</span><span class="tx-v">£110,000</span></div>
+        <div class="tax-row"><span class="tx-lbl">Small Business Rate Relief (RV ≤ £12k)</span><span class="tx-v tv-g">100%</span></div>
+      </div>
+      <div class="tax-sec" style="border:none">
+        <div class="tax-sec-ttl">Key Deadlines</div>
+        <div class="tax-row"><span class="tx-lbl">Self Assessment</span><span class="tx-v">31 January</span></div>
+        <div class="tax-row"><span class="tx-lbl">VAT return + payment</span><span class="tx-v">1 month + 7 days</span></div>
+        <div class="tax-row"><span class="tx-lbl">ICO registration (if you hold customer data)</span><span class="tx-v">£40–60 / yr</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. CHECKLIST -->
+  <div class="card">
+    <div class="card-hdr"><div class="cicon">✅</div><h2>Action Checklist</h2></div>
+    <div>
+      <div class="cl-sec">
+        <div class="cl-ttl red">🔴 This Week — Urgent</div>
+        <div id="urgentCl"></div>
+      </div>
+      <div class="cl-sec">
+        <div class="cl-ttl amber">🟡 This Month</div>
+        <div>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Review your 3 biggest cost lines — target 10% reduction each</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Identify top 3 customers by revenue — assess concentration risk</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Set a monthly revenue target and track vs actual</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Review business insurance — public liability + employer's liability</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Set up Making Tax Digital software — Xero £15/mo · QuickBooks £12/mo</span></label>
+        </div>
+      </div>
+      <div class="cl-sec" style="border:none">
+        <div class="cl-ttl green">🟢 Explore — Growth</div>
+        <div>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Join Federation of Small Businesses — free legal helpline · fsb.org.uk · from £172/yr</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Apply for British Business Bank Start Up Loan — up to £25k at 6% · british-business-bank.co.uk</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Check Business Rates relief with your local council — 40% discount 2025/26</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Book free 1hr Growth Hub adviser session — search "Growth Hub [your county]"</span></label>
+          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Claim Employment Allowance (£10,500 NIC relief) through your payroll software</span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">⚠️ This report is for informational purposes only and does not constitute financial, legal or tax advice. Always consult a qualified accountant or financial adviser before making business decisions. Sources: ONS · HMRC 2025/26 · FSB · British Business Bank.</div>
+
+  <button class="btn btn-blue" onclick="window.print()">⬇ &nbsp;Save as PDF</button>
+  <button class="btn btn-ghost" onclick="startOver()">↺ &nbsp;Start New Analysis</button>
+
+</div><!-- /results -->
+
+</main>
+
+<footer>
+  © 2026 Fynro Studios Ltd &nbsp;·&nbsp; Company No. 16832070 &nbsp;·&nbsp; 2 Frederick Street, Kings Cross, London WC1X 0ND<br>
+  <span style="color:var(--red);font-weight:600">Fintori is a product of Fynro Studios Ltd. Unauthorised reproduction or resale is strictly prohibited.</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
