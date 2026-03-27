@@ -4,22 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Fintori — UK Business Financial Analysis</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
 <header>
-  <div>
+  <div class="logo-section">
     <span class="logo-name">Fintori</span>
-    <span class="logo-tag">by Fynro Studios Ltd · fintori.co.uk</span>
+    <span class="logo-tag">Financial Analysis</span>
   </div>
-  <span class="hdr-badge">Free · No login</span>
+  <div class="hdr-right">
+    <span class="hdr-badge"><i class="fas fa-lock"></i> Free · Private</span>
+    <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
+      <i class="fas fa-moon"></i>
+    </button>
+  </div>
 </header>
 
 <div class="prog-bar"><div class="prog-fill" id="prog"></div></div>
 
 <div class="snav" id="snav">
+  <a class="sbtn sbtn-home" href="index.html"><i class="fas fa-arrow-left"></i><span class="sbtn-home-label"> Back to Main Page</span></a>
   <button class="sbtn active" onclick="goTo(1)" id="sb1">1 · Revenue</button>
   <button class="sbtn" onclick="goTo(2)" id="sb2">2 · Costs</button>
   <button class="sbtn" onclick="goTo(3)" id="sb3">3 · Business</button>
@@ -30,8 +38,6 @@
 
 <!-- ══ STEP 1: REVENUE ══════════════════════════════════════════════ -->
 <div id="s1" class="ssec active">
-  <div class="privacy">🔒 Your data never leaves this device. No account needed.</div>
-
   <div class="card">
     <div class="card-hdr">
       <div class="cicon">💰</div>
@@ -66,7 +72,10 @@
 
     </div>
   </div>
-  <button class="btn btn-navy" onclick="goTo(2)">Next: Your Costs →</button>
+  <div class="action-row">
+    <button class="btn btn-navy" onclick="goTo(2)">Next: Your Costs →</button>
+  </div>
+  <div class="privacy">🔒 Your data never leaves this device.</div>
 </div>
 
 <!-- ══ STEP 2: COSTS ════════════════════════════════════════════════ -->
@@ -133,7 +142,7 @@
       <div class="more-fields" id="moreFields">
         <div class="divider"></div>
         <div class="field">
-          <label>Utilities <span style="font-weight:400;color:var(--g400)">(gas, electric, water)</span></label>
+          <label>Utilities <span style="font-weight:400;color:var(--g400)">(gas, electricity, water)</span></label>
           <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="util" placeholder="0"></div>
         </div>
         <div class="field">
@@ -164,8 +173,10 @@
     </div>
   </div>
 
-  <button class="btn btn-navy" onclick="goTo(3)">Next: Business Details →</button>
-  <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+  <div class="action-row">
+    <button class="btn btn-navy" onclick="goTo(3)">Next: Business Details →</button>
+    <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+  </div>
 </div>
 
 <!-- ══ STEP 3: BUSINESS ═════════════════════════════════════════════ -->
@@ -243,8 +254,10 @@
     </div>
   </div>
 
-  <button class="btn btn-navy" onclick="generateResults()">🎯 &nbsp;Get My Analysis</button>
-  <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+  <div class="action-row">
+    <button class="btn btn-navy" onclick="generateResults()">🎯 &nbsp;Get My Analysis</button>
+    <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+  </div>
 </div>
 
 <!-- ══ LOADING ═══════════════════════════════════════════════════════ -->
@@ -278,7 +291,8 @@
   </div>
 
   <!-- 2. KPI SUMMARY -->
-  <div class="score-card">
+  <div class="score-card" id="resultsSummary">
+    <div class="summary-top">
     <div class="score-ttl">3-Month Summary</div>
     <div class="kpi-grid">
       <div><div class="kpi-lbl">Total Revenue</div><div class="kpi-val" id="k_rev">£0</div></div>
@@ -288,62 +302,71 @@
       <div><div class="kpi-lbl">Cash Runway</div><div class="kpi-val" id="k_runway">—</div></div>
       <div><div class="kpi-lbl">Breakeven / Month</div><div class="kpi-val" id="k_be">£0</div></div>
     </div>
-  </div>
-
-  <!-- BREAKEVEN EXPLAINER -->
-  <div class="card">
-    <div class="card-hdr"><div class="cicon">⚖️</div><h2>Breakeven Analysis</h2></div>
-    <div class="be-box">
-      <div>
-        <div class="be-lbl">Monthly Breakeven Revenue</div>
-        <div class="be-sub" id="be_sub">The minimum you need to cover all costs</div>
-      </div>
-      <div class="be-val" id="be_val">£0</div>
     </div>
-    <div class="card-body" style="padding-top:0">
-      <div id="be_detail" style="font-size:13px;color:var(--g600);line-height:1.7"></div>
+    <div id="resultBreakeven" class="summary-breakeven">
+      <div class="summary-breakeven-head">
+        <h2>Breakeven Analysis</h2>
+      </div>
+      <div class="be-box">
+        <div>
+          <div class="be-lbl">Monthly Breakeven Revenue</div>
+          <div class="be-sub" id="be_sub">The minimum you need to cover all costs</div>
+        </div>
+        <div class="be-val" id="be_val">Â£0</div>
+      </div>
+      <div class="summary-breakeven-body">
+        <div id="be_detail" class="be-detail"></div>
+      </div>
     </div>
   </div>
 
   <!-- 3. HEALTH INDICATORS -->
-  <div class="card">
+  <div class="card" id="resultHealth">
     <div class="card-hdr"><div class="cicon">🎯</div><h2>Health Indicators</h2></div>
-    <div class="sec-lbl">PROFITABILITY</div>
-    <div id="tl_profit"></div>
-    <div class="sec-lbl">CASH & LIQUIDITY</div>
-    <div id="tl_cash"></div>
-    <div class="sec-lbl">EFFICIENCY</div>
-    <div id="tl_eff"></div>
+    <div class="health-grid">
+      <div class="health-sec">
+        <div class="sec-lbl">PROFITABILITY</div>
+        <div id="tl_profit"></div>
+      </div>
+      <div class="health-sec">
+        <div class="sec-lbl">CASH & LIQUIDITY</div>
+        <div id="tl_cash"></div>
+      </div>
+      <div class="health-sec">
+        <div class="sec-lbl">EFFICIENCY</div>
+        <div id="tl_eff"></div>
+      </div>
+    </div>
   </div>
 
   <!-- 4. BENCHMARKS -->
-  <div class="card">
+  <div class="card" id="resultBench">
     <div class="card-hdr"><div class="cicon">📊</div><h2>vs UK Sector Average</h2></div>
     <div class="card-body" id="bench"></div>
   </div>
 
   <!-- 5. COST BREAKDOWN -->
-  <div class="card">
+  <div class="card" id="resultCosts">
     <div class="card-hdr"><div class="cicon">🥧</div><h2>Cost Breakdown <span class="sub">monthly</span></h2></div>
     <div class="card-body" id="costs"></div>
   </div>
 
   <!-- VAT WARNING -->
   <div class="vat-warn" id="vatWarn">
-    <p>⚠️ VAT Threshold Alert</p>
+    <p><i class="fas fa-circle-exclamation"></i><span>VAT Threshold Alert</span></p>
     <p>Your 3-month revenue suggests you may be approaching the £90,000 annual VAT threshold. You must register with HMRC within 30 days of exceeding it.</p>
   </div>
 
   <!-- 6. RECOMMENDED ACTIONS -->
-  <div class="card">
+  <div class="card" id="resultActions">
     <div class="card-hdr"><div class="cicon">⚡</div><h2>Recommended Actions</h2></div>
     <div id="acts"></div>
   </div>
 
   <!-- 7. TAX GUIDE -->
-  <div class="card">
+  <div class="card" id="resultTax">
     <div class="card-hdr"><div class="cicon">💷</div><h2>UK Tax Reference 2025/26</h2></div>
-    <div>
+    <div class="tax-grid">
       <div class="tax-sec">
         <div class="tax-sec-ttl">Corporation Tax</div>
         <div class="tax-row"><span class="tx-lbl">Small profits rate (≤ £50,000)</span><span class="tx-v">19%</span></div>
@@ -372,7 +395,7 @@
         <div class="tax-row"><span class="tx-lbl">Cap per business</span><span class="tx-v">£110,000</span></div>
         <div class="tax-row"><span class="tx-lbl">Small Business Rate Relief (RV ≤ £12k)</span><span class="tx-v tv-g">100%</span></div>
       </div>
-      <div class="tax-sec" style="border:none">
+      <div class="tax-sec">
         <div class="tax-sec-ttl">Key Deadlines</div>
         <div class="tax-row"><span class="tx-lbl">Self Assessment</span><span class="tx-v">31 January</span></div>
         <div class="tax-row"><span class="tx-lbl">VAT return + payment</span><span class="tx-v">1 month + 7 days</span></div>
@@ -382,15 +405,15 @@
   </div>
 
   <!-- 8. CHECKLIST -->
-  <div class="card">
+  <div class="card" id="resultChecklist">
     <div class="card-hdr"><div class="cicon">✅</div><h2>Action Checklist</h2></div>
-    <div>
+    <div class="checklist-grid">
       <div class="cl-sec">
-        <div class="cl-ttl red">🔴 This Week — Urgent</div>
+        <div class="cl-ttl red"><i class="fas fa-circle"></i> This Week — Urgent</div>
         <div id="urgentCl"></div>
       </div>
       <div class="cl-sec">
-        <div class="cl-ttl amber">🟡 This Month</div>
+        <div class="cl-ttl amber"><i class="fas fa-circle"></i> This Month</div>
         <div>
           <label class="ck-item"><input type="checkbox"><span class="ck-txt">Review your 3 biggest cost lines — target 10% reduction each</span></label>
           <label class="ck-item"><input type="checkbox"><span class="ck-txt">Identify top 3 customers by revenue — assess concentration risk</span></label>
@@ -399,8 +422,8 @@
           <label class="ck-item"><input type="checkbox"><span class="ck-txt">Set up Making Tax Digital software — Xero £15/mo · QuickBooks £12/mo</span></label>
         </div>
       </div>
-      <div class="cl-sec" style="border:none">
-        <div class="cl-ttl green">🟢 Explore — Growth</div>
+      <div class="cl-sec cl-sec-last">
+        <div class="cl-ttl green"><i class="fas fa-circle"></i> Explore — Growth</div>
         <div>
           <label class="ck-item"><input type="checkbox"><span class="ck-txt">Join Federation of Small Businesses — free legal helpline · fsb.org.uk · from £172/yr</span></label>
           <label class="ck-item"><input type="checkbox"><span class="ck-txt">Apply for British Business Bank Start Up Loan — up to £25k at 6% · british-business-bank.co.uk</span></label>
@@ -412,20 +435,69 @@
     </div>
   </div>
 
-  <div class="disclaimer">⚠️ This report is for informational purposes only and does not constitute financial, legal or tax advice. Always consult a qualified accountant or financial adviser before making business decisions. Sources: ONS · HMRC 2025/26 · FSB · British Business Bank.</div>
+  <div class="disclaimer"><i class="fas fa-circle-info"></i> This report is for informational purposes only and does not constitute financial, legal or tax advice. Always consult a qualified accountant or financial adviser before making business decisions. Sources: ONS · HMRC 2025/26 · FSB · British Business Bank.</div>
 
-  <button class="btn btn-blue" onclick="window.print()">⬇ &nbsp;Save as PDF</button>
-  <button class="btn btn-ghost" onclick="startOver()">↺ &nbsp;Start New Analysis</button>
+  <div class="action-row">
+    <button class="btn btn-blue" onclick="window.print()">⬇ &nbsp;Save as PDF</button>
+    <button class="btn btn-ghost" onclick="startOver()">↺ &nbsp;Start New Analysis</button>
+  </div>
 
 </div><!-- /results -->
 
 </main>
 
 <footer>
-  © 2026 Fynro Studios Ltd &nbsp;·&nbsp; Company No. 16832070 &nbsp;·&nbsp; 2 Frederick Street, Kings Cross, London WC1X 0ND<br>
-  <span style="color:var(--red);font-weight:600">Fintori is a product of Fynro Studios Ltd. Unauthorised reproduction or resale is strictly prohibited.</span>
+  <div class="footer-content">
+    <div class="footer-brand">
+      <h5>Fintori</h5>
+      <p>Professional financial analysis for UK businesses.</p>
+      <div class="footer-credo">
+        <p>The future is code, lets write it! Fynro - your vision, rendered.</p>
+        <div class="social-links">
+          <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+          <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+          <a href="#" aria-label="Telegram"><i class="fab fa-telegram-plane"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-links">
+      <p><strong>&copy; 2026 Fynro Studios Ltd</strong></p>
+      <p>Company No. 16832070<br>2 Frederick Street, Kings Cross, London WC1X 0ND</p>
+    </div>
+  </div>
 </footer>
 
 <script src="app.js"></script>
+<script>
+  const themeToggle = document.getElementById('themeToggle');
+  const htmlElement = document.documentElement;
+  
+  // Load saved theme preference
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  htmlElement.setAttribute('data-theme', savedTheme);
+  updateThemeIcon(savedTheme);
+  
+  // Toggle theme on button click
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = htmlElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    htmlElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+  });
+  
+  function updateThemeIcon(theme) {
+    const icon = themeToggle.querySelector('i');
+    if (theme === 'dark') {
+      icon.classList.remove('fa-moon');
+      icon.classList.add('fa-sun');
+    } else {
+      icon.classList.remove('fa-sun');
+      icon.classList.add('fa-moon');
+    }
+  }
+</script>
 </body>
 </html>

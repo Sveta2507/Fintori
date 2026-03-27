@@ -20,16 +20,55 @@ const fm=n=>'£'+Math.round(Math.abs(n)).toLocaleString('en-GB');
 const fp=n=>(n*100).toFixed(1)+'%';
 const fmSign=n=>(n<0?'-£':'£')+Math.round(Math.abs(n)).toLocaleString('en-GB');
 
+const statusIconMap={green:'fa-circle-check',amber:'fa-circle-exclamation',red:'fa-circle-xmark'};
+
+function statusBadgeHTML(state,label){
+  return `<i class="fas ${statusIconMap[state]||'fa-circle'}"></i><span>${label}</span>`;
+}
+
+function checklistLeadHTML(tone){
+  return `<span class="ck-lead ${tone}"><i class="fas ${statusIconMap[tone]||'fa-circle'}"></i></span>`;
+}
+
+function syncMoreFieldsHeight(){
+  const wrap=document.getElementById('moreFields');
+  if(!wrap || !wrap.classList.contains('open')) return;
+  const height=wrap.scrollHeight + 24;
+  wrap.style.setProperty('--more-open-height', height + 'px');
+}
+
 function tip(id){
   const el=document.getElementById(id);
+  if(!el) return;
   el.classList.toggle('show');
+  requestAnimationFrame(syncMoreFieldsHeight);
+  window.setTimeout(syncMoreFieldsHeight, 220);
+}
+
+const RESULTS_STORAGE_KEY='fintori_results_html';
+
+function saveResultsSnapshot(){
+  const results=document.getElementById('results');
+  if(!results || !results.innerHTML.trim()) return;
+  localStorage.setItem(RESULTS_STORAGE_KEY, results.innerHTML);
+}
+
+function restoreResultsSnapshot(){
+  const results=document.getElementById('results');
+  const saved=localStorage.getItem(RESULTS_STORAGE_KEY);
+  if(!results || !saved) return false;
+  results.innerHTML=saved;
+  return true;
 }
 
 function toggleMore(){
   const f=document.getElementById('moreFields');
   const b=document.getElementById('moreBtn');
-  const open=f.classList.toggle('open');
-  b.textContent=open?'− Hide additional expenses':'＋ Add more expenses (utilities, insurance, marketing…)';
+  const open=!f.classList.contains('open');
+  const height=f.scrollHeight;
+  f.style.setProperty('--more-open-height', height + 'px');
+  f.classList.toggle('open', open);
+  b.textContent=open?'− Hide more expenses':'＋ Add more expenses';
 }
 
 function recalc(){
@@ -39,8 +78,93 @@ function recalc(){
   });
 }
 
+let currentStep = 1;
+let unlockedStep = 1;
+
+function hasValue(id){
+  const el=document.getElementById(id);
+  return !!el && el.value.trim()!=='';
+}
+
+function validateStep(step){
+  if(step===1) return ['r1','r2','r3'].every(hasValue);
+  if(step===2) return ['cogs','dlab','rent','wages','nic','loan'].every(hasValue);
+  if(step===3) return ['cash','debtors','creditors','debt','stock','emp'].every(hasValue);
+  return true;
+}
+
+function showStepError(step){
+  const message={
+    1:'Enter all three revenue months before continuing.',
+    2:'Complete the core cost fields before continuing.',
+    3:'Complete the business details before generating results.'
+  }[step] || 'Complete this step before continuing.';
+  showToast(message);
+}
+
+function clearStepError(step){
+  return step;
+}
+
+function getToastStack(){
+  let stack=document.querySelector('.toast-stack');
+  if(!stack){
+    stack=document.createElement('div');
+    stack.className='toast-stack';
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+
+function showToast(message){
+  const stack=getToastStack();
+  const toast=document.createElement('div');
+  toast.className='step-toast';
+  toast.innerHTML='<span class="step-toast-icon"><i class="fas fa-xmark"></i></span><div class="step-toast-text">'+message+'</div>';
+  stack.appendChild(toast);
+
+  window.clearTimeout(showToast.dismissTimer);
+  showToast.dismissTimer=window.setTimeout(()=>{
+    toast.classList.add('fade-out');
+    window.setTimeout(()=>{
+      toast.remove();
+      if(!stack.children.length) stack.remove();
+    }, 240);
+  }, 3200);
+}
+
+function syncNavLockState(){
+  [1,2,3,4].forEach(i=>{
+    const btn=document.getElementById('sb'+i);
+    if(!btn) return;
+    btn.disabled=i>unlockedStep;
+    btn.classList.toggle('locked', i>unlockedStep);
+  });
+}
+
+function requestStep(n){
+  if(n<=unlockedStep){
+    clearStepError(currentStep);
+    goTo(n);
+    return;
+  }
+  showStepError(currentStep);
+}
+
+function advanceStep(step){
+  if(!validateStep(step)){
+    showStepError(step);
+    return;
+  }
+  clearStepError(step);
+  unlockedStep=Math.max(unlockedStep, step+1);
+  syncNavLockState();
+  goTo(step+1);
+}
+
 // ── NAVIGATION ───────────────────────────────────────────────────────
 function goTo(n){
+  currentStep=n;
   [1,2,3].forEach(i=>{
     const s=document.getElementById('s'+i);
     if(s) s.classList.toggle('active',i===n);
@@ -48,7 +172,19 @@ function goTo(n){
     b.classList.toggle('active',i===n);
     if(i<n) b.classList.add('done'); else if(i>n) b.classList.remove('done');
   });
-  document.getElementById('results').style.display='none';
+  const results=document.getElementById('results');
+  if(n===4){
+    if(restoreResultsSnapshot()){
+      initAppChrome();
+      results.style.display='grid';
+      requestAnimationFrame(()=>{
+        results.classList.add('is-open');
+      });
+    }
+  } else {
+    results.style.display='none';
+    results.classList.remove('is-open');
+  }
   document.getElementById('loading').style.display='none';
   const pct=[20,50,80,100];
   document.getElementById('prog').style.width=pct[n-1]+'%';
@@ -119,6 +255,13 @@ function calc(){
 
 // ── RENDER ───────────────────────────────────────────────────────────
 function generateResults(){
+  if(!validateStep(3)){
+    showStepError(3);
+    return;
+  }
+  clearStepError(3);
+  unlockedStep=4;
+  syncNavLockState();
   document.getElementById('s3').classList.remove('active');
   document.getElementById('loading').style.display='block';
   document.getElementById('prog').style.width='100%';
@@ -150,14 +293,14 @@ function render(){
 
   const verd=document.getElementById('verdict');
   verd.className='verdict '+(redCount>=2?'bad':amberCount>=2||redCount===1?'warn':'good');
-  document.getElementById('vicon').textContent=redCount>=2?'⚠️':amberCount>=2||redCount===1?'📋':'✅';
+  document.getElementById('vicon').innerHTML=redCount>=2?'<i class="fas fa-triangle-exclamation"></i>':amberCount>=2||redCount===1?'<i class="fas fa-clipboard-list"></i>':'<i class="fas fa-circle-check"></i>';
   document.getElementById('vtitle').textContent=
     redCount>=2?'Immediate action needed':
     amberCount>=2||redCount===1?'A few areas need attention':
     'Business looks healthy';
   document.getElementById('vbody').textContent=
     redCount>=2?'Your business has '+redCount+' critical indicators. Focus on the red actions below before anything else.':
-    amberCount>=2||redCount===1?'Most metrics are acceptable but '+( redCount+amberCount)+' area'+(redCount+amberCount>1?'s need':'needs')+' attention. See recommended actions below.':
+    amberCount>=2||redCount===1?'Most metrics are acceptable but '+(redCount+amberCount)+' area'+(redCount+amberCount>1?'s need':' needs')+' attention. See recommended actions below.':
     'Your key metrics are within healthy ranges. Keep monitoring monthly and use the growth actions below to push further.';
 
   // ── KPIs ──
@@ -171,7 +314,9 @@ function render(){
   document.getElementById('k_be').textContent=d.breakeven!==null?fm(d.breakeven)+'/mo':'—';
 
   // ── BREAKEVEN ──
+  const breakevenCard=document.getElementById('resultBreakeven');
   if(d.breakeven!==null){
+    breakevenCard.classList.remove('is-empty');
     document.getElementById('be_val').textContent=fm(d.breakeven);
     document.getElementById('be_sub').textContent='The minimum monthly revenue to cover all costs';
     const gap=d.breakevenGap;
@@ -181,51 +326,53 @@ function render(){
       '<strong>Breakeven:</strong> '+fm(d.breakeven)+'<br>'+
       '<strong>You are at '+pct+'% of breakeven</strong><br><br>'+
       (gap>0
-        ? '✅ You are <strong>'+fm(gap)+' above breakeven</strong> per month. That is your safety buffer.'
-        : '🔴 You are <strong>'+fm(Math.abs(gap))+' below breakeven</strong> per month. Every month you lose this amount.');
+        ? '<span class="inline-status good"><i class="fas fa-circle-check"></i><span>You are <strong>'+fm(gap)+' above breakeven</strong> per month. That is your safety buffer.</span></span>'
+        : '<span class="inline-status bad"><i class="fas fa-circle-xmark"></i><span>You are <strong>'+fm(Math.abs(gap))+' below breakeven</strong> per month. Every month you lose this amount.</span></span>');
   } else {
-    document.getElementById('be_val').textContent='—';
-    document.getElementById('be_detail').textContent='Enter gross margin data to calculate breakeven.';
+    breakevenCard.classList.add('is-empty');
+    document.getElementById('be_val').textContent='Needs margin data';
+    document.getElementById('be_sub').textContent='Add revenue and direct costs to calculate a useful breakeven figure';
+    document.getElementById('be_detail').textContent='Breakeven only becomes meaningful once the report can see a positive gross margin.';
   }
 
   // ── TRAFFIC LIGHTS ──
   const tlProfit=[
-    {m:'Gross Margin',     val:fp(d.grossMgn),   s:d.grossMgn>=.35?'green':d.grossMgn>=.2?'amber':'red',  l:d.grossMgn>=.35?'🟢 Strong':d.grossMgn>=.2?'🟡 Moderate':'🔴 Low',
+    {m:'Gross Margin',     val:fp(d.grossMgn),   s:d.grossMgn>=.35?'green':d.grossMgn>=.2?'amber':'red',  l:d.grossMgn>=.35?'Strong':d.grossMgn>=.2?'Moderate':'Low',
      aiCtx:{metric:'Gross Margin',value:fp(d.grossMgn),status:d.grossMgn>=.35?'good':d.grossMgn>=.2?'moderate':'bad',avgRev:Math.round(d.avgRev),cogsM:Math.round(d.cogsM),sector:d.bench.label,benchmark:fp(d.bench.gross)}},
-    {m:'Net Margin (avg)', val:fp(d.netMgn),     s:d.netMgn>=.1?'green':d.netMgn>=.05?'amber':'red',      l:d.netMgn>=.1?'🟢 Healthy':d.netMgn>=.05?'🟡 Below avg':'🔴 Critical',
+    {m:'Net Margin (avg)', val:fp(d.netMgn),     s:d.netMgn>=.1?'green':d.netMgn>=.05?'amber':'red',      l:d.netMgn>=.1?'Healthy':d.netMgn>=.05?'Below avg':'Critical',
      aiCtx:{metric:'Net Margin',value:fp(d.netMgn),status:d.netMgn>=.1?'good':d.netMgn>=.05?'moderate':'bad',avgRev:Math.round(d.avgRev),totalCostsM:Math.round(d.totalCostsM),topCosts:d.costMap.slice(0,3).map(c=>c.n+' £'+Math.round(c.a)),sector:d.bench.label,benchmark:fp(d.bench.net)}},
-    {m:'EBITDA',           val:fmSign(d.ebitdaM)+'/mo', s:d.ebitdaM>0?'green':d.ebitdaM===0?'amber':'red', l:d.ebitdaM>0?'🟢 Positive':d.ebitdaM===0?'🟡 Break-even':'🔴 Negative',
+    {m:'EBITDA',           val:fmSign(d.ebitdaM)+'/mo', s:d.ebitdaM>0?'green':d.ebitdaM===0?'amber':'red', l:d.ebitdaM>0?'Positive':d.ebitdaM===0?'Break-even':'Negative',
      aiCtx:{metric:'EBITDA',value:fmSign(d.ebitdaM)+'/mo',status:d.ebitdaM>0?'good':d.ebitdaM===0?'moderate':'bad',ebitda:Math.round(d.ebitdaM),loanRepayments:Math.round(v('loan')),netProfit:Math.round(d.totProfit/3)}},
-    {m:'Revenue Trend',    val:(d.revGrowth>=0?'+':'')+fp(d.revGrowth), s:d.revGrowth>0?'green':d.revGrowth===0?'amber':'red', l:d.revGrowth>0?'🟢 Growing':d.revGrowth===0?'🟡 Flat':'🔴 Declining',
+    {m:'Revenue Trend',    val:(d.revGrowth>=0?'+':'')+fp(d.revGrowth), s:d.revGrowth>0?'green':d.revGrowth===0?'amber':'red', l:d.revGrowth>0?'Growing':d.revGrowth===0?'Flat':'Declining',
      aiCtx:{metric:'Revenue Trend',value:(d.revGrowth>=0?'+':'')+fp(d.revGrowth),status:d.revGrowth>0?'good':d.revGrowth===0?'moderate':'bad',m1:Math.round(d.r1),m2:Math.round(d.r2),m3:Math.round(d.r3)}},
   ];
   const tlCash=[
-    {m:'Cash Runway',       val:d.avgRev>0?d.runway.toFixed(1)+' months':'—', s:d.runway>=3?'green':d.runway>=1?'amber':'red', l:d.runway>=3?'🟢 Good':d.runway>=1?'🟡 Tight':'🔴 Danger',
+    {m:'Cash Runway',       val:d.avgRev>0?d.runway.toFixed(1)+' months':'—', s:d.runway>=3?'green':d.runway>=1?'amber':'red', l:d.runway>=3?'Good':d.runway>=1?'Tight':'Danger',
      aiCtx:{metric:'Cash Runway',value:d.avgRev>0?d.runway.toFixed(1)+' months':'N/A',status:d.runway>=3?'good':d.runway>=1?'moderate':'bad',cash:Math.round(d.cash),avgMonthlyCosts:Math.round(d.totalCostsM),avgRev:Math.round(d.avgRev)}},
-    {m:'Working Capital',   val:d.wcr!==null?d.wcr.toFixed(2)+'x':'—',       s:d.wcr===null?'green':d.wcr>=1.5?'green':d.wcr>=1?'amber':'red', l:d.wcr===null?'—':d.wcr>=1.5?'🟢 Healthy':d.wcr>=1?'🟡 Tight':'🔴 Danger',
+    {m:'Working Capital',   val:d.wcr!==null?d.wcr.toFixed(2)+'x':'—',       s:d.wcr===null?'green':d.wcr>=1.5?'green':d.wcr>=1?'amber':'red', l:d.wcr===null?'Not enough data':d.wcr>=1.5?'Healthy':d.wcr>=1?'Tight':'Danger',
      aiCtx:{metric:'Working Capital',value:d.wcr!==null?d.wcr.toFixed(2)+'x':'N/A',status:d.wcr===null?'good':d.wcr>=1.5?'good':d.wcr>=1?'moderate':'bad',cash:Math.round(d.cash),debtors:Math.round(d.debtors),creditors:Math.round(d.creditors),debt:Math.round(d.debt),workingCapital:Math.round(d.workingCapital)}},
-    {m:'Debt / Revenue',    val:d.avgRev>0?d.debtRatio.toFixed(1)+'x':'—',   s:d.debtRatio<=3?'green':d.debtRatio<=6?'amber':'red', l:d.debtRatio<=3?'🟢 Manageable':d.debtRatio<=6?'🟡 Monitor':'🔴 High',
+    {m:'Debt / Revenue',    val:d.avgRev>0?d.debtRatio.toFixed(1)+'x':'—',   s:d.debtRatio<=3?'green':d.debtRatio<=6?'amber':'red', l:d.debtRatio<=3?'Manageable':d.debtRatio<=6?'Monitor':'High',
      aiCtx:{metric:'Debt to Revenue',value:d.avgRev>0?d.debtRatio.toFixed(1)+'x':'N/A',status:d.debtRatio<=3?'good':d.debtRatio<=6?'moderate':'bad',debt:Math.round(d.debt),avgRev:Math.round(d.avgRev),loanRepayments:Math.round(v('loan'))}},
   ];
   const tlEff=[];
   if(d.debtorDays!==null&&d.debtors>0){
     const dd=Math.round(d.debtorDays), bdd=d.bench.debtDays;
-    tlEff.push({m:'Debtor Days',val:dd+' days (target '+bdd+'d)',s:dd<=bdd?'green':dd<=bdd*2?'amber':'red',l:dd<=bdd?'🟢 On target':dd<=bdd*2?'🟡 Slow':'🔴 Too slow',
+    tlEff.push({m:'Debtor Days',val:dd+' days (target '+bdd+'d)',s:dd<=bdd?'green':dd<=bdd*2?'amber':'red',l:dd<=bdd?'On target':dd<=bdd*2?'Slow':'Too slow',
       aiCtx:{metric:'Debtor Days',value:dd+' days',status:dd<=bdd?'good':dd<=bdd*2?'moderate':'bad',debtors:Math.round(d.debtors),avgMonthlyRev:Math.round(d.avgRev),debtorDays:dd,benchmarkDays:bdd,sector:d.bench.label}});
   }
   if(d.creditorDays!==null&&d.creditors>0){
     const cd=Math.round(d.creditorDays);
-    tlEff.push({m:'Creditor Days',val:cd+' days',s:cd<=60?'green':cd<=90?'amber':'red',l:cd<=60?'🟢 Good':cd<=90?'🟡 Getting long':'🔴 Risk of disputes',
+    tlEff.push({m:'Creditor Days',val:cd+' days',s:cd<=60?'green':cd<=90?'amber':'red',l:cd<=60?'Good':cd<=90?'Getting long':'Risk of disputes',
       aiCtx:{metric:'Creditor Days',value:cd+' days',status:cd<=60?'good':cd<=90?'moderate':'bad',creditors:Math.round(d.creditors),creditorDays:cd}});
   }
   if(d.stockDays!==null&&d.bench.stockDays){
     const sd=Math.round(d.stockDays), bsd=d.bench.stockDays;
-    tlEff.push({m:'Stock Turnover',val:sd+' days (target '+bsd+'d)',s:sd<=bsd?'green':sd<=bsd*2?'amber':'red',l:sd<=bsd?'🟢 Good':sd<=bsd*2?'🟡 Monitor':'🔴 Slow',
+    tlEff.push({m:'Stock Turnover',val:sd+' days (target '+bsd+'d)',s:sd<=bsd?'green':sd<=bsd*2?'amber':'red',l:sd<=bsd?'Good':sd<=bsd*2?'Monitor':'Slow',
       aiCtx:{metric:'Stock Turnover',value:sd+' days',status:sd<=bsd?'good':sd<=bsd*2?'moderate':'bad',stock:Math.round(d.stock),stockDays:sd,benchmarkDays:bsd,cogsM:Math.round(d.cogsM)}});
   }
   if(d.revPerEmp!==null&&d.emp>0){
     const rpe=Math.round(d.revPerEmp);
-    tlEff.push({m:'Revenue / Employee',val:'£'+rpe.toLocaleString('en-GB')+'/yr',s:rpe>=80000?'green':rpe>=40000?'amber':'red',l:rpe>=80000?'🟢 Strong':rpe>=40000?'🟡 Average':'🔴 Low',
+    tlEff.push({m:'Revenue / Employee',val:'£'+rpe.toLocaleString('en-GB')+'/yr',s:rpe>=80000?'green':rpe>=40000?'amber':'red',l:rpe>=80000?'Strong':rpe>=40000?'Average':'Low',
       aiCtx:{metric:'Revenue per Employee',value:'£'+rpe.toLocaleString('en-GB')+'/yr',status:rpe>=80000?'good':rpe>=40000?'moderate':'bad',revPerEmp:rpe,employees:d.emp,annualRev:Math.round(d.avgRev*12),totalWages:Math.round((v('wages')+v('dlab'))*12)}});
   }
 
@@ -239,16 +386,16 @@ function render(){
           <div class="tl-metric" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
             ${t.m}
             <button class="ai-why-btn" id="btn_${uid}" data-ctx='${ctxData.replace(/'/g,"&#39;")}' data-metric="${t.m}" onclick="askWhy('${uid}', this.dataset.metric, this.dataset.ctx)">
-              <span class="ai-icon">✦</span> Why?
+              <span class="ai-icon"><i class="fas fa-wand-magic-sparkles"></i></span> Why?
             </button>
           </div>
           <div class="tl-value">${t.val}</div>
         </div>
-        <div class="tl-badge tl-${t.s}">${t.l}</div>
+        <div class="tl-badge tl-${t.s}">${statusBadgeHTML(t.s, t.l)}</div>
       </div>
       <div class="ai-panel" id="panel_${uid}">
         <div class="ai-panel-inner">
-          <div class="ai-avatar">✦</div>
+          <div class="ai-avatar"><i class="fas fa-wand-magic-sparkles"></i></div>
           <div class="ai-content">
             <div class="ai-label">AI Analysis · ${t.m}</div>
             <div id="body_${uid}">
@@ -316,17 +463,22 @@ function render(){
 
   // ── URGENT CHECKLIST ──
   const urgent=[
-    'Review your health indicators above and note all 🔴 red items',
-    'Register with HMRC for Corporation Tax within 3 months of trading — gov.uk/register-for-corporation-tax',
-    'Register with ICO if you hold any customer data — ico.org.uk · £40/yr',
-    'Verify all staff are paid at least £12.21/hr (National Living Wage, Apr 2025)',
+    {tone:'red',text:'Review your health indicators above and note all critical red items.'},
+    {tone:'amber',text:'Register with HMRC for Corporation Tax within 3 months of trading — gov.uk/register-for-corporation-tax.'},
+    {tone:'amber',text:'Register with ICO if you hold any customer data — ico.org.uk · £40/yr.'},
+    {tone:'green',text:'Verify all staff are paid at least £12.21/hr (National Living Wage, Apr 2025).'},
   ];
-  if(d.totRev>=67500) urgent.unshift('⚠️ Register for VAT — you are approaching the £90,000 annual threshold. Deadline: 30 days after exceeding it.');
-  if(d.runway<1&&d.avgRev>0) urgent.unshift('🚨 Cash runway critical — contact your bank today about an overdraft or emergency facility.');
-  document.getElementById('urgentCl').innerHTML=urgent.map(t=>`
-    <label class="ck-item"><input type="checkbox"><span class="ck-txt">${t}</span></label>`).join('');
+  if(d.totRev>=67500) urgent.unshift({tone:'amber',text:'Register for VAT — you are approaching the £90,000 annual threshold. Deadline: 30 days after exceeding it.'});
+  if(d.runway<1&&d.avgRev>0) urgent.unshift({tone:'red',text:'Cash runway critical — contact your bank today about an overdraft or emergency facility.'});
+  document.getElementById('urgentCl').innerHTML=urgent.map(item=>`
+    <label class="ck-item"><input type="checkbox">${checklistLeadHTML(item.tone)}<span class="ck-txt">${item.text}</span></label>`).join('');
 
-  document.getElementById('results').style.display='block';
+  const results=document.getElementById('results');
+  results.style.display='grid';
+  requestAnimationFrame(()=>{
+    results.classList.add('is-open');
+  });
+  saveResultsSnapshot();
   window.scrollTo({top:0,behavior:'smooth'});
 
   // Trigger AI verdict analysis
@@ -334,7 +486,12 @@ function render(){
 }
 
 function startOver(){
-  document.getElementById('results').style.display='none';
+  const results=document.getElementById('results');
+  results.style.display='none';
+  results.classList.remove('is-open');
+  localStorage.removeItem(RESULTS_STORAGE_KEY);
+  unlockedStep=1;
+  syncNavLockState();
   goTo(1);
 }
 
@@ -351,13 +508,13 @@ function askWhy(uid, metricName, ctxStr) {
   if (openPanels.has(uid)) {
     panel.classList.remove('open');
     openPanels.delete(uid);
-    btn.innerHTML = '<span class="ai-icon">✦</span> Why?';
+    btn.innerHTML = '<span class="ai-icon"><i class="fas fa-wand-magic-sparkles"></i></span> Why?';
     return;
   }
 
   panel.classList.add('open');
   openPanels.add(uid);
-  btn.innerHTML = '<span class="ai-icon">✦</span> Close';
+  btn.innerHTML = '<span class="ai-icon"><i class="fas fa-wand-magic-sparkles"></i></span> Close';
 
   if (btn.dataset.loaded === '1') return;
   btn.classList.add('loading');
@@ -413,15 +570,15 @@ function renderMetricAI(el, rawText) {
     const j = JSON.parse(clean);
     el.innerHTML = `
       <div class="ai-section">
-        <div class="ai-section-ttl">📌 What it means</div>
+        <div class="ai-section-ttl"><i class="fas fa-thumbtack"></i> What it means</div>
         <div class="ai-section-body">${j.what}</div>
       </div>
       <div class="ai-section">
-        <div class="ai-section-ttl">🔍 Why this happened</div>
+        <div class="ai-section-ttl"><i class="fas fa-magnifying-glass"></i> Why this happened</div>
         <div class="ai-section-body">${j.why}</div>
       </div>
       <div class="ai-section">
-        <div class="ai-section-ttl">⚡ What to do</div>
+        <div class="ai-section-ttl"><i class="fas fa-bolt"></i> What to do</div>
         <div class="ai-section-body">${j.action}</div>
       </div>`;
   } catch(e) {
@@ -454,15 +611,84 @@ Respond in this EXACT JSON format only, no markdown:
     const content = document.getElementById('verdictAIContent');
     content.classList.add('ready');
     document.getElementById('vai_problem').innerHTML =
-      `<span class="verdict-ai-ttl">🔴 Main Problem</span>${j.problem}`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span>${j.problem}`;
     document.getElementById('vai_opportunity').innerHTML =
-      `<span class="verdict-ai-ttl">🟢 Main Opportunity</span>${j.opportunity}`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span>${j.opportunity}`;
     document.getElementById('vai_steps').innerHTML =
-      `<span class="verdict-ai-ttl">→ Next Steps</span><ul class="verdict-ai-steps">${j.steps.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ul class="verdict-ai-steps">${j.steps.map(s=>`<li>${s}</li>`).join('')}</ul>`;
   } catch(e) {
     document.getElementById('verdictAILoading').innerHTML =
       '<div style="font-size:12px;opacity:.7">AI analysis unavailable.</div>';
   }
 }
 
+syncNavLockState();
+function toggleMore(){
+  const f=document.getElementById('moreFields');
+  const b=document.getElementById('moreBtn');
+  const open=!f.classList.contains('open');
+  const height=f.scrollHeight;
+  f.style.setProperty('--more-open-height', height + 'px');
+  f.classList.toggle('open', open);
+  b.innerHTML=open?'<i class="fas fa-minus"></i> Hide more expenses':'<i class="fas fa-plus"></i> Add more expenses';
+}
+
+function initAppChrome(){
+  const navLabels=['1 · Revenue','2 · Costs','3 · Business','4 · Results'];
+  navLabels.forEach((label,index)=>{
+    const btn=document.getElementById('sb'+(index+1));
+    if(btn) btn.textContent=label;
+  });
+
+  document.getElementById('sb1')?.setAttribute('onclick','requestStep(1)');
+  document.getElementById('sb2')?.setAttribute('onclick','requestStep(2)');
+  document.getElementById('sb3')?.setAttribute('onclick','requestStep(3)');
+  document.getElementById('sb4')?.setAttribute('onclick','requestStep(4)');
+
+  const icons=['fa-wallet','fa-industry','fa-receipt','fa-building','fa-scale-balanced','fa-gauge-high','fa-chart-column','fa-chart-pie','fa-bolt','fa-file-invoice-dollar','fa-list-check'];
+  document.querySelectorAll('.card-hdr .cicon').forEach((el,index)=>{
+    el.innerHTML='<i class="fas '+(icons[index] || 'fa-circle')+'"></i>';
+  });
+
+  document.querySelectorAll('.tip-btn').forEach(btn=>{
+    btn.type='button';
+    btn.setAttribute('aria-label','Show help');
+    btn.innerHTML='<i class="fas fa-circle-info"></i>';
+  });
+
+  const privacy=document.querySelector('.privacy');
+  if(privacy) privacy.innerHTML='<i class="fas fa-shield-alt"></i> Your data never leaves this device.';
+
+  const primaryButtons=document.querySelectorAll('#s1 .btn-navy, #s2 .btn-navy, #s3 .btn-navy');
+  if(primaryButtons[0]) { primaryButtons[0].innerHTML='Next: Your Costs <i class="fas fa-arrow-right"></i>'; primaryButtons[0].setAttribute('onclick','advanceStep(1)'); }
+  if(primaryButtons[1]) { primaryButtons[1].innerHTML='Next: Business Details <i class="fas fa-arrow-right"></i>'; primaryButtons[1].setAttribute('onclick','advanceStep(2)'); }
+  if(primaryButtons[2]) { primaryButtons[2].innerHTML='<i class="fas fa-chart-line"></i> Get My Analysis'; }
+
+  const backButtons=document.querySelectorAll('#s2 .btn-ghost, #s3 .btn-ghost');
+  if(backButtons[0]) { backButtons[0].innerHTML='<i class="fas fa-arrow-left"></i> Back'; backButtons[0].setAttribute('onclick','requestStep(1)'); }
+  if(backButtons[1]) { backButtons[1].innerHTML='<i class="fas fa-arrow-left"></i> Back'; backButtons[1].setAttribute('onclick','requestStep(2)'); }
+
+  const actionButtons=document.querySelectorAll('#results .btn');
+  if(actionButtons[0]) actionButtons[0].innerHTML='<i class="fas fa-download"></i> Save as PDF';
+  if(actionButtons[1]) actionButtons[1].innerHTML='<i class="fas fa-rotate-right"></i> Start New Analysis';
+
+  const moreBtn=document.getElementById('moreBtn');
+  if(moreBtn) moreBtn.innerHTML='<i class="fas fa-plus"></i> Add more expenses';
+}
+
+function toggleMore(){
+  const f=document.getElementById('moreFields');
+  const b=document.getElementById('moreBtn');
+  if(!f || !b) return;
+  const open=!f.classList.contains('open');
+  f.classList.toggle('open', open);
+  if(open){
+    requestAnimationFrame(syncMoreFieldsHeight);
+    window.setTimeout(syncMoreFieldsHeight, 180);
+  }
+  b.innerHTML=open?'<i class="fas fa-minus"></i> Hide more expenses':'<i class="fas fa-plus"></i> Add more expenses';
+}
+
+initAppChrome();
+syncNavLockState();
 goTo(1);

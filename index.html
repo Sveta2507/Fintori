@@ -3,146 +3,276 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fintori — Free UK Business Financial Analysis</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Fintori - Professional UK Business Financial Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="index.css">
 </head>
 <body>
 
 <header>
-  <div>
-    <span class="logo-name">Fintori</span>
-    <span class="logo-tag">by Fynro Studios Ltd · fintori.co.uk</span>
+    <div class="logo-section">
+      <span class="logo-name">Fintori</span>
+      <span class="logo-tag">Financial Intelligence for UK Businesses</span>
+    </div>
+  <div class="hdr-right">
+    <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" type="button">
+      <i class="fas fa-moon"></i>
+    </button>
   </div>
-  <span class="hdr-badge">Free · No login</span>
 </header>
 
 <main>
+  <section class="hero">
+    <div class="hero-gradient"></div>
+    <div class="hero-content">
+      <div class="hero-badge"><i class="fas fa-sparkles"></i> Professional Financial Analysis</div>
+      <h1>Understand your business health in 10 minutes</h1>
+      <p>Enter 3 months of figures and get instant insights: profitability, cash flow, sector benchmarks, and a prioritized action plan.</p>
+      <a href="app.html" class="btn btn-primary btn-lg">
+        <i class="fas fa-arrow-right"></i> Begin Analysis
+      </a>
+      <div class="hero-subtext">
+        <span><i class="fas fa-check-circle"></i> No signup needed</span>
+        <span><i class="fas fa-shield-alt"></i> Data stays private</span>
+        <span><i class="fas fa-star"></i> Completely free</span>
+      </div>
+    </div>
+  </section>
 
-  <!-- HERO -->
-  <div class="hero">
-    <span class="hero-tag">Free UK Business Financial Analysis</span>
-    <h1>Know exactly where your<br>business stands</h1>
-    <p>Enter 3 months of figures. Get a full financial health report with UK benchmarks, breakeven analysis, and a personalised action plan.</p>
-    <a href="app.html" class="btn-hero">
-      ▶&nbsp; Start Free Analysis
+  <section class="stats-section">
+    <div class="stat-box">
+      <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+      <div class="stat-copy">
+        <div class="stat-number">11</div>
+        <div class="stat-label">Health Metrics</div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-icon"><i class="fas fa-industry"></i></div>
+      <div class="stat-copy">
+        <div class="stat-number">12</div>
+        <div class="stat-label">UK Sectors</div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-icon"><i class="fas fa-clock"></i></div>
+      <div class="stat-copy">
+        <div class="stat-number">10</div>
+        <div class="stat-label">Minutes</div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-icon"><i class="fas fa-pound-sign"></i></div>
+      <div class="stat-copy">
+        <div class="stat-number">0</div>
+        <div class="stat-label">Cost to Use</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features-section scroll-panel">
+    <div class="section-header">
+      <h2>Everything You Need to Manage Your Finances</h2>
+      <p>Comprehensive analysis built specifically for UK entrepreneurs and business owners.</p>
+    </div>
+    <div class="features-grid features-grid-asymmetric">
+      <div class="feature-visual feature-visual-analytics">
+        <img src="images/analytics.jpg" alt="Business analytics dashboard">
+      </div>
+      <div class="feature-stack feature-stack-primary">
+        <div class="feature-card line-card feature-card-dashboard">
+          <div class="feature-icon"><i class="fas fa-heart-pulse"></i></div>
+          <h3>Health Dashboard</h3>
+          <p>Visual health scoring across profitability, cash flow, liquidity, debt, and efficiency.</p>
+        </div>
+        <div class="feature-card line-card feature-card-benchmarks">
+          <div class="feature-icon"><i class="fas fa-chart-bar"></i></div>
+          <h3>Sector Benchmarks</h3>
+          <p>Compare your business against UK industry standards so you can spot strengths and weak points quickly.</p>
+        </div>
+      </div>
+      <div class="feature-stack feature-stack-secondary">
+        <div class="feature-card line-card feature-card-breakeven">
+          <div class="feature-icon"><i class="fas fa-scale-balanced"></i></div>
+          <h3>Breakeven Analysis</h3>
+          <p>See the monthly revenue you need to cover costs and understand your safety margin.</p>
+        </div>
+        <div class="feature-card line-card feature-card-action">
+          <div class="feature-icon"><i class="fas fa-list-check"></i></div>
+          <h3>Action Checklist</h3>
+          <p>Get practical next steps ranked by urgency and impact, not just raw numbers.</p>
+        </div>
+        <div class="feature-card line-card feature-card-tax">
+          <div class="feature-icon"><i class="fas fa-calculator"></i></div>
+          <h3>Tax Reference</h3>
+          <p>Current UK business tax context including VAT, corporation tax, NIC, and compliance reminders.</p>
+        </div>
+        <div class="feature-card line-card feature-card-costs">
+          <div class="feature-icon"><i class="fas fa-pie-chart"></i></div>
+          <h3>Cost Breakdown</h3>
+          <p>Understand where your money goes each month with a clearer view of your cost structure.</p>
+        </div>
+      </div>
+      <div class="feature-visual feature-visual-planning">
+        <img src="images/planning.jpg" alt="Business planning and finance review">
+      </div>
+    </div>
+  </section>
+
+  <section class="how-section scroll-panel">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>Four simple steps to complete financial clarity.</p>
+    </div>
+    <div class="process-layout">
+      <div class="process-visual">
+        <img src="images/process.jpg" alt="Entering business figures into a financial tool">
+      </div>
+      <div class="steps-container">
+      <div class="step-item">
+        <div class="step-circle">1</div>
+        <h4>Your Revenue</h4>
+        <p>Enter three months of sales figures. VAT handling is built in if you are registered.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-circle">2</div>
+        <h4>Your Costs</h4>
+        <p>Add direct costs, wages, rent, and optional expense detail for a more accurate picture.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-circle">3</div>
+        <h4>Business Details</h4>
+        <p>Provide cash, debt, debtors, creditors, and sector details to complete the analysis.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-circle">4</div>
+        <h4>Get Results</h4>
+        <p>Receive instant scores, benchmarks, breakeven guidance, and clear recommendations.</p>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="trust-section scroll-panel">
+    <div class="section-header">
+      <h2>Built for Trust</h2>
+      <p>Simple, private, and focused on practical decisions for UK businesses.</p>
+    </div>
+    <div class="trust-grid trust-grid-editorial">
+      <div class="trust-item trust-item-lead trust-item-private">
+        <i class="fas fa-lock"></i>
+        <h4>100% Private</h4>
+        <p>Your data stays on your device. No account, no hidden processing, no forced signup.</p>
+      </div>
+      <div class="trust-visual">
+        <img src="images/trust.jpg" alt="Professional trust and security visual">
+      </div>
+      <div class="trust-item trust-item-uk">
+        <i class="fas fa-sterling-sign"></i>
+        <h4>UK Focused</h4>
+        <p>Designed around UK business language, tax context, and operating benchmarks.</p>
+      </div>
+      <div class="trust-item trust-item-free">
+        <i class="fas fa-circle-check"></i>
+        <h4>Always Free</h4>
+        <p>No premium wall and no surprise fees. The tool is there to help you use it.</p>
+      </div>
+      <div class="trust-item trust-item-device">
+        <i class="fas fa-mobile-screen-button"></i>
+        <h4>Any Device</h4>
+        <p>The layout adapts for desktop and mobile so you can use it wherever you are working.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="final-cta final-cta-wave">
+    <h2>Ready to understand your business?</h2>
+    <p>Get your complete financial analysis in just 10 minutes.</p>
+    <a href="app.html" class="btn btn-primary btn-xlarge">
+      <i class="fas fa-arrow-right"></i> Start Free Analysis
     </a>
-    <div class="btn-hero-sub">No signup · No credit card · Takes 10 minutes</div>
-  </div>
-
-  <!-- STATS -->
-  <div class="stats">
-    <div class="stat-card">
-      <span class="stat-val">11</span>
-      <span class="stat-lbl">Health indicators</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-val">12</span>
-      <span class="stat-lbl">UK sectors</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-val">10min</span>
-      <span class="stat-lbl">To complete</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-val">Free</span>
-      <span class="stat-lbl">No card needed</span>
-    </div>
-  </div>
-
-  <!-- FEATURES -->
-  <div class="features">
-    <div class="feat-card">
-      <span class="feat-icon">🎯</span>
-      <div class="feat-title">Health Score</div>
-      <div class="feat-desc">11 indicators across profitability, cash flow and efficiency</div>
-    </div>
-    <div class="feat-card">
-      <span class="feat-icon">📊</span>
-      <div class="feat-title">UK Benchmarks</div>
-      <div class="feat-desc">Compare your margins to your sector · ONS 2024/25 data</div>
-    </div>
-    <div class="feat-card">
-      <span class="feat-icon">⚖️</span>
-      <div class="feat-title">Breakeven Point</div>
-      <div class="feat-desc">Know exactly how much you need to earn each month</div>
-    </div>
-    <div class="feat-card">
-      <span class="feat-icon">✅</span>
-      <div class="feat-title">Action Plan</div>
-      <div class="feat-desc">Prioritised checklist — what to action this week</div>
-    </div>
-    <div class="feat-card">
-      <span class="feat-icon">💷</span>
-      <div class="feat-title">Tax Reference</div>
-      <div class="feat-desc">HMRC rates 2025/26 — Corporation Tax, VAT, NIC, NLW</div>
-    </div>
-    <div class="feat-card">
-      <span class="feat-icon">🥧</span>
-      <div class="feat-title">Cost Breakdown</div>
-      <div class="feat-desc">See exactly where your money goes every month</div>
-    </div>
-  </div>
-
-  <!-- HOW IT WORKS -->
-  <div class="how-card">
-    <div class="how-hdr">
-      <span>📋</span> How it works
-    </div>
-    <div class="how-step">
-      <div class="step-num">1</div>
-      <div>
-        <div class="step-title">Enter your revenue</div>
-        <div class="step-desc">Total sales for the last 3 months. Toggle if you're VAT-registered — we strip the VAT automatically.</div>
-      </div>
-    </div>
-    <div class="how-step">
-      <div class="step-num">2</div>
-      <div>
-        <div class="step-title">Enter your costs</div>
-        <div class="step-desc">Materials, wages, rent and operating expenses. Start with the main 4 — expand for more detail.</div>
-      </div>
-    </div>
-    <div class="how-step">
-      <div class="step-num">3</div>
-      <div>
-        <div class="step-title">Add business details</div>
-        <div class="step-desc">Cash balance, debtors, creditors, debt and your industry sector. Takes 2 minutes.</div>
-      </div>
-    </div>
-    <div class="how-step">
-      <div class="step-num">4</div>
-      <div>
-        <div class="step-title">Get your report</div>
-        <div class="step-desc">Instant analysis — health score, benchmarks, breakeven, cost breakdown and prioritised actions.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TRUST BADGES -->
-  <div class="badges">
-    <div class="badge"><span class="badge-icon">🔒</span> Data stays on your device</div>
-    <div class="badge"><span class="badge-icon">🇬🇧</span> Built for UK businesses</div>
-    <div class="badge"><span class="badge-icon">💷</span> HMRC rates 2025/26</div>
-    <div class="badge"><span class="badge-icon">🏭</span> 12 UK sectors covered</div>
-    <div class="badge"><span class="badge-icon">⚡</span> No account required</div>
-    <div class="badge"><span class="badge-icon">📱</span> Works on any device</div>
-  </div>
-
-  <!-- BOTTOM CTA -->
-  <div class="cta-wrap">
-    <a href="app.html" class="btn-cta">
-      ▶&nbsp; Start Free Analysis
-    </a>
-    <div class="cta-sub">Takes 10 minutes · No signup · No credit card</div>
-  </div>
-
+  </section>
 </main>
 
 <footer>
-  © 2026 Fynro Studios Ltd &nbsp;·&nbsp; Company No. 16832070 &nbsp;·&nbsp; 2 Frederick Street, Kings Cross, London WC1X 0ND
-  <span>Fintori is a product of Fynro Studios Ltd. Unauthorised reproduction or resale is strictly prohibited.</span>
+  <div class="footer-content">
+    <div class="footer-brand">
+      <h5>Fintori</h5>
+      <p>Professional financial analysis for UK businesses.</p>
+      <div class="footer-credo">
+        <p>The future is code, lets write it! Fynro - your vision, rendered.</p>
+        <div class="social-links">
+          <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+          <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+          <a href="#" aria-label="Telegram"><i class="fab fa-telegram-plane"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-links">
+      <p><strong>&copy; 2026 Fynro Studios Ltd</strong></p>
+      <p>Company No. 16832070<br>2 Frederick Street, Kings Cross, London WC1X 0ND</p>
+    </div>
+  </div>
 </footer>
 
+<script>
+  const themeToggle = document.getElementById('themeToggle');
+  const htmlElement = document.documentElement;
+  const savedTheme = localStorage.getItem('theme') || 'light';
+
+  htmlElement.setAttribute('data-theme', savedTheme);
+  updateThemeIcon(savedTheme);
+
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = htmlElement.getAttribute('data-theme');
+    const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+    htmlElement.setAttribute('data-theme', nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    updateThemeIcon(nextTheme);
+  });
+
+  function updateThemeIcon(theme) {
+    const icon = themeToggle.querySelector('i');
+    icon.classList.toggle('fa-sun', theme === 'dark');
+    icon.classList.toggle('fa-moon', theme !== 'dark');
+  }
+
+  const scrollSections = document.querySelectorAll('.scroll-panel');
+
+  scrollSections.forEach((section) => {
+    const cards = section.querySelectorAll('.line-card');
+    cards.forEach((card, index) => {
+      card.style.setProperty('--card-order', index);
+    });
+  });
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function updateScrollLines() {
+    const viewportHeight = window.innerHeight;
+
+    scrollSections.forEach((section) => {
+      const rect = section.getBoundingClientRect();
+      const total = rect.height + viewportHeight;
+      const progress = clamp((viewportHeight - rect.top) / total, 0, 1);
+      const cards = section.querySelectorAll('.line-card');
+
+      cards.forEach((card, index) => {
+        const staggered = clamp(progress * 1.45 - index * 0.12, 0, 1);
+        card.style.setProperty('--line-progress', staggered.toFixed(3));
+      });
+    });
+  }
+
+  updateScrollLines();
+  window.addEventListener('scroll', updateScrollLines, { passive: true });
+  window.addEventListener('resize', updateScrollLines);
+</script>
 </body>
 </html>
