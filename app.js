@@ -559,8 +559,23 @@ Respond in this EXACT JSON format only, no markdown, no extra text:
 {"what":"One sentence explaining what this metric actually measures in plain English (max 20 words)","why":"2-3 sentences explaining WHY this specific number occurred, based on the actual data. Reference specific figures.","action":"2-3 concrete specific actions this owner should take RIGHT NOW. Be specific with numbers and timelines."}`;
 }
 
+function getBackendBaseUrl() {
+  if (window.FINTORI_API_BASE) {
+    return String(window.FINTORI_API_BASE).replace(/\/+$/, '');
+  }
+  const { protocol, hostname, port, origin } = window.location;
+  if (port === '5500') {
+    return `${protocol}//${hostname}:5000`;
+  }
+  return origin.replace(/\/+$/, '');
+}
+
+function backendUrl(path) {
+  return `${getBackendBaseUrl()}/${String(path).replace(/^\/+/, '')}`;
+}
+
 async function callClaudeAPI(prompt) {
-  const response = await fetch('proxy.py', {
+  const response = await fetch(backendUrl('proxy.py'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -692,7 +707,10 @@ function initAppChrome(){
   if(backButtons[1]) { backButtons[1].innerHTML='<i class="fas fa-arrow-left"></i> Back'; backButtons[1].setAttribute('onclick','requestStep(2)'); }
 
   const actionButtons=document.querySelectorAll('#results .btn');
-  if(actionButtons[0]) actionButtons[0].innerHTML='<i class="fas fa-download"></i> Save as PDF';
+  if(actionButtons[0]) {
+    actionButtons[0].id='exportPdfBtn';
+    actionButtons[0].innerHTML='<span class="btn-label"><i class="fas fa-download"></i> Save as PDF</span>';
+  }
   if(actionButtons[1]) actionButtons[1].innerHTML='<i class="fas fa-rotate-right"></i> Start New Analysis';
 
   const moreBtn=document.getElementById('moreBtn');
@@ -712,7 +730,623 @@ function toggleMore(){
   b.innerHTML=open?'<i class="fas fa-minus"></i> Hide more expenses':'<i class="fas fa-plus"></i> Add more expenses';
 }
 
-function exportReport(){
+function setExportButtonState(state){
+  const btn = document.getElementById('exportPdfBtn');
+  if(!btn) return;
+  btn.classList.remove('is-busy','is-success');
+  btn.disabled = false;
+
+  if(state === 'loading'){
+    btn.classList.add('is-busy');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-label"><span class="btn-spin"></span> Preparing PDF...</span>';
+    return;
+  }
+
+  if(state === 'success'){
+    btn.classList.add('is-success');
+    btn.innerHTML = '<span class="btn-label"><i class="fas fa-circle-check"></i> PDF ready</span>';
+    window.setTimeout(() => setExportButtonState('idle'), 1800);
+    return;
+  }
+
+  btn.innerHTML = '<span class="btn-label"><i class="fas fa-download"></i> Save as PDF</span>';
+}
+
+function sanitizeExportHtml(html){
+  return html
+    .replace(/Ã‚Â£|Â£/g, '£')
+    .replace(/Â·/g, '·')
+    .replace(/â€”/g, '—')
+    .replace(/â€“/g, '–')
+    .replace(/â†’/g, '→')
+    .replace(/â‰¤/g, '≤')
+    .replace(/â‰¥/g, '≥')
+    .replace(/â†º/g, '↺')
+    .replace(/â¬‡/g, '⬇')
+    .replace(/ðŸ“Š|ðŸ¥§|ðŸ’·|ðŸŽ¯/g, '')
+    .replace(/âš¡/g, '');
+}
+
+function sanitizeExportText(text){
+  return (text || '')
+    .replace(/Ã‚Â£|Â£/g, '£')
+    .replace(/Â·/g, '·')
+    .replace(/â€”/g, '—')
+    .replace(/â€“/g, '–')
+    .replace(/â†’/g, '→')
+    .replace(/â‰¤/g, '≤')
+    .replace(/â‰¥/g, '≥')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\s*([,:;!?])/g, '$1')
+    .replace(/([,:;!?])(?!\s|$)/g, '$1 ')
+    .replace(/\s*[—–]\s*/g, ' — ')
+    .replace(/\s*\|\s*/g, ' | ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function preparePdfClone(node){
+  if(!node) return null;
+
+  node.querySelectorAll('script').forEach(el => el.remove());
+  node.querySelectorAll('.theme-toggle, .hdr-badge, .sbtn-home, .action-row, .toast-stack').forEach(el => el.remove());
+  node.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
+
+  return node;
+}
+
+function buildWebsitePdfHtml(){
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
+  const stylesheets = [
+    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap',
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    new URL('css/style.css', window.location.href).href,
+    new URL('app.css', window.location.href).href
+  ];
+  const fragments = [
+    preparePdfClone(document.getElementById('results')?.cloneNode(true))
+  ].filter(Boolean).map(el => el.outerHTML).join('\n');
+
+  return sanitizeExportHtml(`<!DOCTYPE html>
+<html lang="en" data-theme="${theme}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${sanitizeExportText(document.title || 'Fintori Report')}</title>
+  <base href="${window.location.origin}/">
+  ${stylesheets.map(href => `<link rel="stylesheet" href="${href}">`).join('\n  ')}
+  <style>
+    @page{
+      size:A4;
+      margin:8mm;
+    }
+    html,body{
+      margin:0;
+      padding:0;
+      background:var(--page-bg);
+    }
+    body{
+      width:auto;
+      min-width:0;
+      overflow:visible;
+      font-size:16px;
+    }
+    body > *{
+      box-sizing:border-box;
+    }
+    #results{
+      display:grid !important;
+      opacity:1 !important;
+      transform:none !important;
+      visibility:visible !important;
+      width:100% !important;
+      max-width:190mm !important;
+      margin:0 auto !important;
+      gap:14px !important;
+    }
+    .verdict{
+      margin-top:0 !important;
+      margin-bottom:18px !important;
+      margin-left:0 !important;
+      margin-right:0 !important;
+      min-height:280px !important;
+      width:100% !important;
+    }
+    .verdict.good{
+      background-image:none !important;
+      background:linear-gradient(135deg,#0b7b57 0%, #138d69 100%) !important;
+    }
+    .verdict.warn{
+      background-image:none !important;
+      background:linear-gradient(135deg,#a05a12 0%, #c27c1e 100%) !important;
+    }
+    .verdict.bad{
+      background-image:none !important;
+      background:linear-gradient(135deg,#8d2330 0%, #b03445 100%) !important;
+    }
+    .summary-top{
+      background-image:none !important;
+      background:linear-gradient(135deg,#152645 0%, #1c3158 100%) !important;
+    }
+    .summary-top::before{
+      display:none !important;
+    }
+    .bench-fill-art{
+      background-image:none !important;
+      background:linear-gradient(135deg,rgba(21,38,69,.08),rgba(31,77,184,.12)) !important;
+    }
+    .score-card,
+    .card,
+    .vat-warn,
+    .disclaimer{
+      width:100% !important;
+      max-width:none !important;
+    }
+    .kpi-grid,
+    .health-grid,
+    .checklist-grid,
+    .tax-grid{
+      gap:12px !important;
+    }
+    #results .action-row,
+    .bench-fill-art,
+    #exportPdfBtn{
+      display:none !important;
+    }
+    .summary-top{
+      padding:24px 24px !important;
+    }
+    .summary-breakeven{
+      padding:18px 24px 14px !important;
+    }
+    .card-body,
+    #acts,
+    #bench,
+    #costs{
+      padding-left:24px !important;
+      padding-right:24px !important;
+    }
+    @media print{
+      html,body{
+        background:var(--page-bg) !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${fragments}
+</body>
+</html>`);
+}
+
+function buildMobilePdfData(){
+  const getText = (selector) => sanitizeExportText(document.querySelector(selector)?.textContent || '');
+  const getAllText = (selector) => [...document.querySelectorAll(selector)].map(el => sanitizeExportText(el.textContent)).filter(Boolean);
+
+  return {
+    title: getText('#vtitle') || 'Fintori Business Analysis',
+    verdict: getText('#vbody'),
+    date: new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }),
+    summary: [
+      ['Revenue (3 months)', getText('#k_rev')],
+      ['Profit / Loss', getText('#k_profit')],
+      ['Net Margin', getText('#k_margin')],
+      ['EBITDA (monthly)', getText('#k_ebitda')],
+      ['Cash Runway', getText('#k_runway')],
+      ['Breakeven / Month', getText('#k_be')]
+    ],
+    breakevenTitle: 'Breakeven Analysis',
+    breakevenValue: getText('#be_val'),
+    breakevenSub: getText('#be_sub'),
+    breakevenDetail: getText('#be_detail'),
+    health: getAllText('#resultHealth .tl-item').map(t => t.replace(/\s+/g, ' ').trim()),
+    benchmarks: getAllText('#bench .bench-item').map(t => t.replace(/\s+/g, ' ').trim()),
+    costs: getAllText('#costs .cost-item').map(t => t.replace(/\s+/g, ' ').trim()),
+    actions: getAllText('#acts .act-item'),
+    vat: document.getElementById('vatWarn')?.style.display !== 'none' ? getText('#vatWarn') : '',
+    checklist: getAllText('#urgentCl .ck-item'),
+    disclaimer: getText('.disclaimer')
+  };
+}
+
+function buildMobilePdfHtml(report){
+  const list = (items, cls = '') => (items || []).filter(Boolean).map(item => `<li class="${cls}">${item}</li>`).join('');
+  const summaryCards = report.summary.map(([label, value]) => `
+    <div class="pdf-kpi">
+      <div class="pdf-kpi-label">${label}</div>
+      <div class="pdf-kpi-value">${value}</div>
+    </div>
+  `).join('');
+
+  return sanitizeExportHtml(`
+    <style>
+      .pdf-export{
+        width: 760px;
+        font-family: Inter, Arial, sans-serif;
+        background: #f5f7fb;
+        color: #182437;
+        padding: 20px;
+      }
+      .pdf-shell{
+        display: grid;
+        gap: 16px;
+      }
+      .pdf-hero{
+        background: linear-gradient(135deg, #0d1830 0%, #142543 100%);
+        color: #ffffff;
+        border-radius: 22px;
+        padding: 24px 26px;
+      }
+      .pdf-eyebrow{
+        font-size: 11px;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        opacity: .72;
+        margin-bottom: 10px;
+      }
+      .pdf-title{
+        font-family: "Plus Jakarta Sans", Inter, sans-serif;
+        font-size: 28px;
+        line-height: 1.08;
+        font-weight: 800;
+        margin: 0 0 10px;
+      }
+      .pdf-copy{
+        font-size: 15px;
+        line-height: 1.7;
+        margin: 0;
+        opacity: .94;
+      }
+      .pdf-meta{
+        margin-top: 12px;
+        font-size: 11px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        opacity: .7;
+      }
+      .pdf-card{
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        overflow: hidden;
+      }
+      .pdf-card-head{
+        padding: 14px 18px;
+        background: #edf3ff;
+        border-bottom: 1px solid #dbe5f4;
+      }
+      .pdf-card-head.dark{
+        background: linear-gradient(135deg, #152645 0%, #1c3158 100%);
+        color: #ffffff;
+        border-bottom: none;
+      }
+      .pdf-card-title{
+        font-family: "Plus Jakarta Sans", Inter, sans-serif;
+        font-size: 18px;
+        font-weight: 800;
+        margin: 0;
+      }
+      .pdf-card-body{
+        padding: 18px;
+      }
+      .pdf-summary-grid{
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .pdf-kpi{
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 12px 14px;
+        background: #ffffff;
+      }
+      .pdf-kpi-label{
+        font-size: 11px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 6px;
+      }
+      .pdf-kpi-value{
+        font-size: 18px;
+        font-weight: 800;
+        color: #12203a;
+        line-height: 1.2;
+      }
+      .pdf-breakeven{
+        margin-top: 14px;
+        border-top: 1px solid #e5edf8;
+        padding-top: 14px;
+      }
+      .pdf-breakeven-box{
+        background: linear-gradient(135deg, #f4f8ff 0%, #ecf3ff 100%);
+        border: 1px solid #c8d9fb;
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-top: 10px;
+      }
+      .pdf-breakeven-label{
+        font-size: 11px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: #1f4db8;
+        margin-bottom: 6px;
+        font-weight: 700;
+      }
+      .pdf-breakeven-value{
+        font-size: 26px;
+        font-weight: 800;
+        color: #1f4db8;
+        margin-bottom: 6px;
+      }
+      .pdf-breakeven-sub{
+        font-size: 13px;
+        line-height: 1.6;
+        color: #35506f;
+      }
+      .pdf-grid-two{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .pdf-list{
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .pdf-list li{
+        font-size: 13px;
+        line-height: 1.65;
+        color: #24384f;
+        padding-left: 14px;
+        position: relative;
+      }
+      .pdf-list li::before{
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #1f4db8;
+        position: absolute;
+        left: 0;
+        top: .55em;
+      }
+      .pdf-alert{
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+      }
+      .pdf-alert-title{
+        font-family: "Plus Jakarta Sans", Inter, sans-serif;
+        font-size: 17px;
+        font-weight: 800;
+        color: #c2410c;
+        margin: 0 0 8px;
+      }
+      .pdf-alert-copy{
+        font-size: 13px;
+        line-height: 1.7;
+        color: #7c2d12;
+        margin: 0;
+      }
+      .pdf-note{
+        font-size: 11px;
+        line-height: 1.75;
+        color: #64748b;
+        padding: 4px 2px 0;
+      }
+    </style>
+    <div class="pdf-export">
+      <div class="pdf-shell">
+        <section class="pdf-hero">
+          <div class="pdf-eyebrow">Fintori Financial Analysis</div>
+          <h1 class="pdf-title">${report.title || 'Fintori Business Analysis'}</h1>
+          <p class="pdf-copy">${report.verdict}</p>
+          <div class="pdf-meta">Generated ${report.date}</div>
+        </section>
+
+        <section class="pdf-card">
+          <div class="pdf-card-head dark">
+            <h2 class="pdf-card-title">3-Month Summary</h2>
+          </div>
+          <div class="pdf-card-body">
+            <div class="pdf-summary-grid">${summaryCards}</div>
+            <div class="pdf-breakeven">
+              <h3 class="pdf-card-title" style="font-size:16px;color:#12203a;">${report.breakevenTitle}</h3>
+              <div class="pdf-breakeven-box">
+                <div class="pdf-breakeven-label">Monthly Breakeven Revenue</div>
+                <div class="pdf-breakeven-value">${report.breakevenValue}</div>
+                <div class="pdf-breakeven-sub">${report.breakevenSub}</div>
+              </div>
+              <div class="pdf-note">${report.breakevenDetail}</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="pdf-grid-two">
+          <div class="pdf-card">
+            <div class="pdf-card-head"><h2 class="pdf-card-title">Health Indicators</h2></div>
+            <div class="pdf-card-body"><ul class="pdf-list">${list(report.health)}</ul></div>
+          </div>
+          <div class="pdf-card">
+            <div class="pdf-card-head"><h2 class="pdf-card-title">vs UK Sector Average</h2></div>
+            <div class="pdf-card-body"><ul class="pdf-list">${list(report.benchmarks)}</ul></div>
+          </div>
+        </section>
+
+        <section class="pdf-card">
+          <div class="pdf-card-head"><h2 class="pdf-card-title">Cost Breakdown</h2></div>
+          <div class="pdf-card-body"><ul class="pdf-list">${list(report.costs)}</ul></div>
+        </section>
+
+        ${report.vat ? `
+          <section class="pdf-alert">
+            <h2 class="pdf-alert-title">VAT Threshold Alert</h2>
+            <p class="pdf-alert-copy">${report.vat}</p>
+          </section>
+        ` : ''}
+
+        <section class="pdf-card">
+          <div class="pdf-card-head"><h2 class="pdf-card-title">Recommended Actions</h2></div>
+          <div class="pdf-card-body"><ul class="pdf-list">${list(report.actions)}</ul></div>
+        </section>
+
+        <section class="pdf-card">
+          <div class="pdf-card-head"><h2 class="pdf-card-title">Action Checklist</h2></div>
+          <div class="pdf-card-body"><ul class="pdf-list">${list(report.checklist)}</ul></div>
+        </section>
+
+        <div class="pdf-note">${report.disclaimer}</div>
+      </div>
+    </div>
+  `);
+}
+
+function renderTextPdf(doc, report){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const maxWidth = pageWidth - margin * 2;
+  let y = 18;
+  const navy = [13, 24, 48];
+  const navyMid = [20, 37, 67];
+  const blue = [31, 77, 184];
+  const blueSoft = [237, 243, 255];
+  const border = [229, 231, 235];
+  const text = [24, 36, 55];
+  const muted = [90, 102, 119];
+
+  const ensureSpace = (needed = 12) => {
+    if (y + needed > pageHeight - 16) {
+      doc.addPage();
+      y = 18;
+    }
+  };
+
+  const measureLines = (text, size = 11, width = maxWidth) => {
+    doc.setFontSize(size);
+    return doc.splitTextToSize(text || '', width);
+  };
+
+  const writeLines = (lines, x, size = 11, weight = 'normal', color = text, lineFactor = 0.54) => {
+    doc.setFont('helvetica', weight);
+    doc.setFontSize(size);
+    doc.setTextColor(...color);
+    doc.text(lines, x, y);
+    y += lines.length * size * lineFactor;
+  };
+
+  const writeBlock = (content, size = 11, weight = 'normal', color = text, gap = 8, width = maxWidth) => {
+    if (!content) return;
+    const lines = measureLines(content, size, width);
+    const blockHeight = lines.length * size * 0.54 + gap;
+    ensureSpace(blockHeight);
+    writeLines(lines, margin, size, weight, color);
+    y += gap;
+  };
+
+  const drawCard = (title, items, options = {}) => {
+    if (!items || !items.length) return;
+    const titleSize = options.titleSize || 13;
+    const bodySize = options.bodySize || 10;
+    const titleLines = measureLines(title, titleSize, maxWidth - 18);
+    const itemLines = items.map(item => measureLines(item, bodySize, maxWidth - 24));
+    const cardHeight =
+      16 +
+      titleLines.length * titleSize * 0.52 +
+      10 +
+      itemLines.reduce((sum, lines) => sum + lines.length * bodySize * 0.52 + 6, 0) +
+      6;
+
+    ensureSpace(cardHeight);
+    doc.setDrawColor(...border);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, y, maxWidth, cardHeight, 4, 4, 'FD');
+
+    doc.setFillColor(...blueSoft);
+    doc.roundedRect(margin, y, maxWidth, 16 + titleLines.length * titleSize * 0.52, 4, 4, 'F');
+    doc.setDrawColor(...blue);
+    doc.setLineWidth(0.8);
+    doc.line(margin, y, margin, y + 16 + titleLines.length * titleSize * 0.52);
+
+    y += 10;
+    writeLines(titleLines, margin + 10, titleSize, 'bold', blue, 0.52);
+    y += 8;
+
+    itemLines.forEach((lines) => {
+      doc.setFillColor(...blue);
+      doc.circle(margin + 5, y - 1.5, 1.1, 'F');
+      writeLines(lines, margin + 10, bodySize, 'normal', text, 0.52);
+      y += 6;
+    });
+
+    y += 6;
+  };
+
+  const drawSummaryCard = () => {
+    const summaryLines = report.summary.map(([label, value]) => `${label}: ${value}`);
+    const beLine = `${report.breakevenValue} — ${report.breakevenSub}`;
+    const blocks = [
+      ...summaryLines.map(line => measureLines(line, 10, maxWidth - 20)),
+      measureLines(beLine, 10, maxWidth - 20),
+      measureLines(report.breakevenDetail, 10, maxWidth - 20)
+    ];
+    const cardHeight =
+      18 + 14 * 0.52 + 10 +
+      blocks.reduce((sum, lines, index) => sum + lines.length * 10 * 0.52 + (index === summaryLines.length ? 10 : 5), 0) +
+      10;
+
+    ensureSpace(cardHeight);
+    doc.setDrawColor(...border);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, y, maxWidth, cardHeight, 4, 4, 'FD');
+
+    doc.setFillColor(...navyMid);
+    doc.roundedRect(margin, y, maxWidth, 24, 4, 4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text('3-Month Summary', margin + 8, y + 14);
+
+    y += 34;
+    summaryLines.forEach(line => writeBlock(line, 10, 'normal', text, 5));
+    y += 2;
+    doc.setDrawColor(229, 237, 248);
+    doc.line(margin + 8, y, margin + maxWidth - 8, y);
+    y += 10;
+    writeBlock(report.breakevenTitle, 12, 'bold', blue, 5);
+    writeBlock(beLine, 10, 'normal', text, 5);
+    writeBlock(report.breakevenDetail, 10, 'normal', text, 8);
+  };
+
+  doc.setFillColor(...navyMid);
+  doc.roundedRect(margin, y - 2, maxWidth, 28, 4, 4, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(19);
+  doc.text(report.title || 'Fintori Business Analysis', margin + 8, y + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`Generated ${report.date}`, margin + 8, y + 16);
+  y += 38;
+
+  drawCard('Overall Assessment', [report.verdict], { titleSize: 12, bodySize: 10 });
+  drawSummaryCard();
+  drawCard('Health Indicators', report.health);
+  drawCard('vs UK Sector Average', report.benchmarks);
+  drawCard('Cost Breakdown', report.costs);
+  if (report.vat) drawCard('VAT Threshold Alert', [report.vat], { titleSize: 12, bodySize: 10 });
+  drawCard('Recommended Actions', report.actions);
+  drawCard('Action Checklist', report.checklist);
+  writeBlock(report.disclaimer, 9, 'normal', muted, 6);
+}
+
+async function exportReport(){
   const isMobile = window.matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
   const results = document.getElementById('results');
   if(!isMobile || !results){
@@ -720,69 +1354,43 @@ function exportReport(){
     return;
   }
 
-  if(typeof html2pdf === 'undefined'){
-    window.print();
-    return;
-  }
+  setExportButtonState('loading');
+  await new Promise(resolve => window.setTimeout(resolve, 50));
 
-  const reportDate = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-  const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-  const verdict = results.querySelector('.verdict');
-  const title = (verdict?.querySelector('.verdict-title')?.textContent || 'Fintori Report').trim();
-  const exportNode = document.createElement('div');
-  exportNode.className = 'mobile-pdf-export';
-  exportNode.innerHTML = `
-    <style>
-      .mobile-pdf-export{font-family:Inter,Segoe UI,Arial,sans-serif;color:#182437;padding:0 0 12px}
-      .mobile-pdf-shell{padding:20px;background:${theme === 'dark' ? '#0f172a' : '#f5f7fb'}}
-      .mobile-pdf-hero{padding:26px 24px;border-radius:24px;background:linear-gradient(135deg,#183d8f,#2f5fbc);color:#fff;margin-bottom:18px}
-      .mobile-pdf-hero h1{margin:0 0 10px;font-size:28px;line-height:1.06}
-      .mobile-pdf-hero p{margin:0;font-size:16px;line-height:1.7}
-      .mobile-pdf-stamp{margin-top:12px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
-      .mobile-pdf-panel{background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:18px 18px 20px;margin-bottom:16px;overflow:hidden}
-      .mobile-pdf-panel .card,
-      .mobile-pdf-panel .health-sec,
-      .mobile-pdf-panel .tax-sec{box-shadow:none!important;border-color:#e5e7eb!important;background:#fff!important}
-      .mobile-pdf-panel .card-hdr{padding:0 0 12px!important}
-      .mobile-pdf-panel .card-body,
-      .mobile-pdf-panel #acts,
-      .mobile-pdf-panel .health-grid,
-      .mobile-pdf-panel .tax-grid{padding:0!important}
-      .mobile-pdf-panel .summary-top{border-radius:18px 18px 0 0}
-      .mobile-pdf-panel .summary-breakeven{padding-left:0!important;padding-right:0!important;padding-bottom:0!important}
-      .mobile-pdf-panel .be-box{margin-left:0!important;margin-right:0!important}
-      .mobile-pdf-panel .bench-fill-art,
-      .mobile-pdf-panel .action-row,
-      .mobile-pdf-panel .theme-toggle,
-      .mobile-pdf-panel .tip-btn{display:none!important}
-    </style>
-    <div class="mobile-pdf-shell">
-      <section class="mobile-pdf-hero">
-        <h1>${title}</h1>
-        <p>${verdict?.querySelector('.verdict-body')?.textContent?.trim() || 'Business analysis report.'}</p>
-        <div class="mobile-pdf-stamp">Generated ${reportDate}</div>
-      </section>
-      <section class="mobile-pdf-panel">${results.querySelector('.score-card')?.outerHTML || ''}</section>
-      ${[...results.querySelectorAll('.card')].filter(card => !card.classList.contains('score-card')).map(card => `<section class="mobile-pdf-panel">${card.outerHTML}</section>`).join('')}
-      ${results.querySelector('#vatWarn')?.style.display !== 'none' ? `<section class="mobile-pdf-panel">${results.querySelector('#vatWarn')?.outerHTML || ''}</section>` : ''}
-      ${results.querySelector('.disclaimer') ? `<section class="mobile-pdf-panel">${results.querySelector('.disclaimer').outerHTML}</section>` : ''}
-    </div>
-  `;
-
-  document.body.appendChild(exportNode);
   const stamp = new Date().toISOString().slice(0,10);
-  const options = {
-    margin: [10, 10, 10, 10],
-    filename: `fintori-report-${stamp}.pdf`,
-    image: { type: 'jpeg', quality: 0.96 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: theme === 'dark' ? '#0f172a' : '#f5f7fb' },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
-  };
 
-  html2pdf().set(options).from(exportNode).save().finally(() => {
-    exportNode.remove();
-  });
+  try {
+    const response = await fetch(backendUrl('pdf.py'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxy-Token': 'fyntori-x7k2-mQ9p-2026'
+      },
+      body: JSON.stringify({
+        filename: `fintori-report-${stamp}.pdf`,
+        html: buildWebsitePdfHtml()
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `PDF export failed (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `fintori-report-${stamp}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setExportButtonState('success');
+  } catch (error) {
+    setExportButtonState('idle');
+    showToast('PDF export failed on this device. Please try again or use desktop Save as PDF.');
+  }
 }
 
 initAppChrome();

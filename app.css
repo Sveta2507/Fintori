@@ -504,6 +504,33 @@ select{
 .btn-navy:active{transform:scale(.98)}
 .btn-blue{background:var(--base-color);color:var(--white);margin-top:14px;box-shadow:0 4px 12px rgba(31,77,184,.2)}
 .btn-blue:hover{background:var(--base-dark);transform:translateY(-3px);box-shadow:var(--shadow-brand)}
+.btn-blue.is-busy,
+.btn-blue.is-busy:hover{
+  background: var(--base-dark);
+  color: var(--white);
+  transform: none;
+  box-shadow: 0 4px 12px rgba(31,77,184,.2);
+  cursor: wait;
+}
+
+.btn-blue.is-success,
+.btn-blue.is-success:hover{
+  background: #0f8a54;
+  color: var(--white);
+  transform: none;
+  box-shadow: 0 4px 12px rgba(15,138,84,.22);
+}
+
+.btn-blue .btn-spin{
+  display:inline-block;
+  width:14px;
+  height:14px;
+  border:2px solid rgba(255,255,255,.28);
+  border-top-color:#ffffff;
+  border-radius:50%;
+  animation: spin .8s linear infinite;
+  vertical-align:-2px;
+}
 .btn-ghost{background:var(--white);color:var(--base-color);border:1.5px solid #e5e7eb;font-size:15px;margin-top:10px}
 .btn-ghost:hover{background:var(--very-light-gray);border-color:var(--base-color);transform:translateY(-2px);box-shadow:0 10px 22px rgba(15,23,42,.08)}
 

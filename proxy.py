@@ -8,10 +8,12 @@ import time
 import hashlib
 import os
 import tempfile
+from io import BytesIO
 
 from dotenv import load_dotenv
 import requests
 from flask import Flask, request, jsonify, make_response
+from playwright.sync_api import sync_playwright
 
 load_dotenv()  # load .env in local development
 
@@ -125,6 +127,75 @@ def test():
         return f"Connected OK: {resp.text[:100]}"
     except requests.exceptions.RequestException as e:
         return f"Connection error: {e}"
+
+
+@app.route('/pdf.py', methods=['OPTIONS', 'POST'])
+def render_pdf():
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    token = request.headers.get('X-Proxy-Token', '')
+    if token != PROXY_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    payload = request.get_json(silent=True) or {}
+    html = payload.get('html', '')
+    filename = payload.get('filename', 'fintori-report.pdf')
+
+    if not html or not isinstance(html, str):
+        return jsonify({'error': 'Missing HTML content'}), 400
+
+    if not filename.lower().endswith('.pdf'):
+        filename = f'{filename}.pdf'
+
+    if '<html' in html.lower():
+        wrapped_html = html
+    else:
+        wrapped_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {{
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      box-sizing: border-box;
+    }}
+    html, body {{
+      margin: 0;
+      padding: 0;
+      background: #f5f7fb;
+    }}
+  </style>
+</head>
+<body>
+{html}
+</body>
+</html>"""
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={'width': 1280, 'height': 720}, device_scale_factor=1)
+            page.set_content(wrapped_html, wait_until='networkidle')
+            page.emulate_media(media='screen')
+            page.wait_for_load_state('networkidle')
+            pdf_bytes = page.pdf(
+                format='A4',
+                print_background=True,
+                scale=0.94,
+                margin={'top': '8mm', 'right': '8mm', 'bottom': '8mm', 'left': '8mm'},
+                prefer_css_page_size=True
+            )
+            browser.close()
+    except Exception as e:
+        return jsonify({'error': f'PDF render failed: {e}'}), 500
+
+    response = make_response(pdf_bytes)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 # ── DEV SERVER ────────────────────────────────────────────────────────────────
