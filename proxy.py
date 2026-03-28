@@ -13,7 +13,7 @@ from io import BytesIO
 from dotenv import load_dotenv
 import requests
 from flask import Flask, request, jsonify, make_response
-from playwright.sync_api import sync_playwright
+
 
 load_dotenv()  # load .env in local development
 
@@ -177,6 +177,7 @@ def render_pdf():
 </html>"""
 
     try:
+        from playwright.sync_api import sync_playwright  # lazy import — see note above
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page(viewport={'width': 1280, 'height': 720}, device_scale_factor=1)
