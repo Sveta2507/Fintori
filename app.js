@@ -46,6 +46,7 @@ function tip(id){
 }
 
 const RESULTS_STORAGE_KEY='fintori_results_html';
+const FORM_STORAGE_KEY='fintori_form_state';
 
 function saveResultsSnapshot(){
   const results=document.getElementById('results');
@@ -59,6 +60,71 @@ function restoreResultsSnapshot(){
   if(!results || !saved) return false;
   results.innerHTML=saved;
   return true;
+}
+
+function getPersistedFields(){
+  return [...document.querySelectorAll('#s1 input, #s1 select, #s2 input, #s2 select, #s3 input, #s3 select')]
+    .filter(el => el.id);
+}
+
+function saveFormState(){
+  const state = {};
+  getPersistedFields().forEach(el => {
+    state[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(state));
+}
+
+function restoreFormState(){
+  const raw = localStorage.getItem(FORM_STORAGE_KEY);
+  if(!raw) return false;
+  try{
+    const state = JSON.parse(raw);
+    getPersistedFields().forEach(el => {
+      if(!(el.id in state)) return;
+      if(el.type === 'checkbox'){
+        el.checked = !!state[el.id];
+      } else {
+        el.value = state[el.id];
+      }
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function computeUnlockedStep(){
+  let nextUnlocked = 1;
+  if(validateStep(1)) nextUnlocked = 2;
+  if(validateStep(1) && validateStep(2)) nextUnlocked = 3;
+  if(validateStep(1) && validateStep(2) && validateStep(3)) {
+    nextUnlocked = localStorage.getItem(RESULTS_STORAGE_KEY) ? 4 : 3;
+  }
+  unlockedStep = nextUnlocked;
+  syncNavLockState();
+}
+
+function setStepUrl(step){
+  const url = new URL(window.location.href);
+  url.searchParams.set('step', String(step));
+  history.replaceState(null, '', url.toString());
+}
+
+function getStepFromUrl(){
+  const url = new URL(window.location.href);
+  const step = parseInt(url.searchParams.get('step') || '1', 10);
+  return Number.isFinite(step) ? step : 1;
+}
+
+function bindFormPersistence(){
+  getPersistedFields().forEach(el => {
+    const eventName = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
+    el.addEventListener(eventName, () => {
+      saveFormState();
+      computeUnlockedStep();
+    });
+  });
 }
 
 function toggleMore(){
@@ -189,6 +255,7 @@ function goTo(n){
   const pct=[20,50,80,100];
   document.getElementById('prog').style.width=pct[n-1]+'%';
   document.getElementById('sb4').classList.toggle('active',n===4);
+  setStepUrl(n);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -259,6 +326,7 @@ function generateResults(){
     showStepError(3);
     return;
   }
+  saveFormState();
   clearStepError(3);
   unlockedStep=4;
   syncNavLockState();
@@ -552,9 +620,18 @@ function startOver(){
   results.style.display='none';
   results.classList.remove('is-open');
   localStorage.removeItem(RESULTS_STORAGE_KEY);
+  localStorage.removeItem(FORM_STORAGE_KEY);
   window.__fintoriVerdictData = null;
   unlockedStep=1;
   syncNavLockState();
+  getPersistedFields().forEach(el => {
+    if(el.type === 'checkbox'){
+      el.checked = el.id === 'vatReg';
+    } else {
+      el.value = '';
+    }
+  });
+  recalc();
   goTo(1);
 }
 
@@ -1521,6 +1598,10 @@ async function exportReport(){
 }
 
 initAppChrome();
+restoreFormState();
+recalc();
+bindFormPersistence();
+computeUnlockedStep();
 syncNavLockState();
 document.addEventListener("DOMContentLoaded", () => {
   const rotatingButtons = document.querySelectorAll(".rotating-cta");
@@ -1537,4 +1618,4 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 window.addEventListener('resize', syncBenchFillHeight);
 window.addEventListener('resize', syncVerdictAIHeight);
-goTo(1);
+goTo(Math.min(Math.max(getStepFromUrl(), 1), unlockedStep));
