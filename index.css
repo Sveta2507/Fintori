@@ -10,6 +10,8 @@
   --slate-blue: #172947;
   --chrome-deep: #0d1830;
   --chrome-mid: #142543;
+  --chrome-light: #f8fbff;
+  --chrome-light-mid: #eef4ff;
   --medium-gray: #717580;
   --cornflower-blue: #4b79d8;
   --solitude-blue: #edf3ff;
@@ -43,7 +45,7 @@ body {
 }
 
 header {
-  background: linear-gradient(135deg, var(--chrome-deep) 0%, var(--chrome-mid) 100%);
+  background: var(--very-light-gray);
   padding: 18px 32px;
   display: flex;
   align-items: center;
@@ -52,7 +54,7 @@ header {
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
 }
 
 .logo-section {
@@ -64,7 +66,7 @@ header {
   font-family: var(--alt-font);
   font-size: 28px;
   font-weight: 800;
-  color: var(--white);
+  color: var(--charcoal-blue);
   letter-spacing: -0.5px;
 }
 
@@ -72,7 +74,7 @@ header {
   margin-top: 2px;
   font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(18, 32, 58, 0.68);
   letter-spacing: 0.3px;
 }
 
@@ -85,9 +87,9 @@ header {
 
 .hdr-badge,
 .theme-toggle {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--white);
+  border: 1px solid rgba(31, 77, 184, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--charcoal-blue);
   backdrop-filter: blur(10px);
 }
 
@@ -100,8 +102,8 @@ header {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(18, 32, 58, 0.92);
+  border-color: rgba(18, 32, 58, 0.18);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -109,7 +111,12 @@ header {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 40px;
+  height: 40px;
   padding: 8px 12px;
+  border: 1px solid rgba(18, 32, 58, 0.18);
+  background: var(--charcoal-blue);
+  color: var(--white);
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
@@ -117,9 +124,13 @@ header {
 }
 
 .theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: #0f1a30;
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(10, 18, 36, 0.18);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+.theme-toggle i {
+  color: var(--white);
 }
 
 main {
@@ -1103,8 +1114,21 @@ footer {
 
 [data-theme="dark"] .hdr-badge,
 [data-theme="dark"] .theme-toggle {
-  background: rgba(15, 23, 42, 0.4);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--charcoal-blue);
+}
+
+[data-theme="dark"] .theme-toggle i {
+  color: var(--charcoal-blue);
+}
+
+[data-theme="dark"] .logo-name {
+  color: var(--white);
+}
+
+[data-theme="dark"] .logo-tag {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 [data-theme="dark"] .stat-box,

@@ -276,10 +276,11 @@
     <div class="verdict-title" id="vtitle">Business looks healthy</div>
     <div class="verdict-body" id="vbody">Your key metrics are within acceptable ranges. See below for specific indicators and what to action this week.</div>
     <div class="verdict-ai" id="verdictAI">
+      <button class="verdict-ai-trigger rotating-cta" id="verdictAITrigger" onclick="requestVerdictAI()"><i class="fas fa-wand-magic-sparkles"></i><span>Generate AI Report</span></button>
       <div class="verdict-ai-loading" id="verdictAILoading">
         <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:.85">
-          <div class="ai-spinner-dot"></div><div class="ai-spinner-dot"></div><div class="ai-spinner-dot"></div>
-          <span>AI is analysing your business...</span>
+          <span class="btn-spin"></span>
+          <span>Analysis in process...</span>
         </div>
       </div>
       <div class="verdict-ai-content" id="verdictAIContent">
@@ -416,21 +417,21 @@
       <div class="cl-sec">
         <div class="cl-ttl amber"><i class="fas fa-circle"></i> This Month</div>
         <div>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Review your 3 biggest cost lines — target 10% reduction each</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Identify top 3 customers by revenue — assess concentration risk</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Set a monthly revenue target and track vs actual</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Review business insurance — public liability + employer's liability</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Set up Making Tax Digital software — Xero £15/mo · QuickBooks £12/mo</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Review your 3 biggest cost lines — target 10% reduction each</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Identify top 3 customers by revenue — assess concentration risk</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Set a monthly revenue target and track vs actual</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Review business insurance — public liability + employer's liability</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Set up Making Tax Digital software — Xero £15/mo · QuickBooks £12/mo</span></label>
         </div>
       </div>
       <div class="cl-sec cl-sec-last">
         <div class="cl-ttl green"><i class="fas fa-circle"></i> Explore — Growth</div>
         <div>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Join Federation of Small Businesses — free legal helpline · fsb.org.uk · from £172/yr</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Apply for British Business Bank Start Up Loan — up to £25k at 6% · british-business-bank.co.uk</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Check Business Rates relief with your local council — 40% discount 2025/26</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Book free 1hr Growth Hub adviser session — search "Growth Hub [your county]"</span></label>
-          <label class="ck-item"><input type="checkbox"><span class="ck-txt">Claim Employment Allowance (£10,500 NIC relief) through your payroll software</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Join Federation of Small Businesses — free legal helpline · fsb.org.uk · from £172/yr</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Apply for British Business Bank Start Up Loan — up to £25k at 6% · british-business-bank.co.uk</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Check Business Rates relief with your local council — 40% discount 2025/26</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Book free 1hr Growth Hub adviser session — search "Growth Hub [your county]"</span></label>
+          <label class="ck-item"><input type="checkbox" disabled><span class="ck-txt">Claim Employment Allowance (£10,500 NIC relief) through your payroll software</span></label>
         </div>
       </div>
     </div>

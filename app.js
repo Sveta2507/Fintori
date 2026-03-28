@@ -471,7 +471,7 @@ function render(){
   if(d.totRev>=67500) urgent.unshift({tone:'amber',text:'Register for VAT — you are approaching the £90,000 annual threshold. Deadline: 30 days after exceeding it.'});
   if(d.runway<1&&d.avgRev>0) urgent.unshift({tone:'red',text:'Cash runway critical — contact your bank today about an overdraft or emergency facility.'});
   document.getElementById('urgentCl').innerHTML=urgent.map(item=>`
-    <label class="ck-item"><input type="checkbox">${checklistLeadHTML(item.tone)}<span class="ck-txt">${item.text}</span></label>`).join('');
+    <label class="ck-item"><input type="checkbox" disabled>${checklistLeadHTML(item.tone)}<span class="ck-txt">${item.text}</span></label>`).join('');
 
   const results=document.getElementById('results');
   results.style.display='grid';
@@ -483,8 +483,8 @@ function render(){
   saveResultsSnapshot();
   window.scrollTo({top:0,behavior:'smooth'});
 
-  // Trigger AI verdict analysis
-  loadVerdictAI(d);
+  window.__fintoriVerdictData = d;
+  resetVerdictAI();
 }
 
 function syncBenchFillHeight() {
@@ -507,11 +507,52 @@ function syncVerdictAIHeight(){
   content.style.maxHeight = content.scrollHeight + 'px';
 }
 
+function resetVerdictAI(){
+  const trigger = document.getElementById('verdictAITrigger');
+  const loading = document.getElementById('verdictAILoading');
+  const content = document.getElementById('verdictAIContent');
+  if(trigger){
+    trigger.classList.remove('is-hidden');
+    trigger.classList.remove('is-busy');
+    trigger.disabled = false;
+    trigger.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i><span>Generate AI Report</span>';
+  }
+  if(loading){
+    loading.style.display = 'none';
+    loading.innerHTML = '<div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:.85"><span class="btn-spin"></span><span>Analysis in process...</span></div>';
+  }
+  if(content){
+    content.classList.remove('ready');
+    content.style.maxHeight = '0px';
+  }
+  ['vai_problem','vai_opportunity','vai_steps'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = '';
+  });
+}
+
+function requestVerdictAI(){
+  const d = window.__fintoriVerdictData;
+  if(!d) return;
+  const trigger = document.getElementById('verdictAITrigger');
+  const loading = document.getElementById('verdictAILoading');
+  if(trigger){
+    trigger.disabled = true;
+    trigger.classList.add('is-busy');
+    trigger.innerHTML = '<span class="btn-spin"></span><span>Analysis in process...</span>';
+  }
+  if(loading){
+    loading.style.display = 'none';
+  }
+  loadVerdictAI(d);
+}
+
 function startOver(){
   const results=document.getElementById('results');
   results.style.display='none';
   results.classList.remove('is-open');
   localStorage.removeItem(RESULTS_STORAGE_KEY);
+  window.__fintoriVerdictData = null;
   unlockedStep=1;
   syncNavLockState();
   goTo(1);
@@ -652,6 +693,11 @@ Respond in this EXACT JSON format only, no markdown:
     document.getElementById('vai_steps').innerHTML =
       `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>`;
     document.getElementById('verdictAILoading').style.display = 'none';
+    const trigger = document.getElementById('verdictAITrigger');
+    if(trigger){
+      trigger.classList.remove('is-busy');
+      trigger.classList.add('is-hidden');
+    }
     content.classList.add('ready');
     content.style.maxHeight = '0px';
     requestAnimationFrame(() => {
@@ -661,8 +707,17 @@ Respond in this EXACT JSON format only, no markdown:
       }, 220);
     });
   } catch(e) {
-    document.getElementById('verdictAILoading').innerHTML =
-      '<div style="font-size:12px;opacity:.7">AI analysis unavailable.</div>';
+    const loading = document.getElementById('verdictAILoading');
+    const trigger = document.getElementById('verdictAITrigger');
+    if(loading){
+      loading.style.display = 'flex';
+      loading.innerHTML = '<div style="font-size:12px;opacity:.7">AI analysis unavailable.</div>';
+    }
+    if(trigger){
+      trigger.disabled = false;
+      trigger.classList.remove('is-hidden','is-busy');
+      trigger.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i><span>Generate AI Report</span>';
+    }
   }
 }
 
@@ -1467,6 +1522,19 @@ async function exportReport(){
 
 initAppChrome();
 syncNavLockState();
+document.addEventListener("DOMContentLoaded", () => {
+  const rotatingButtons = document.querySelectorAll(".rotating-cta");
+  if (!rotatingButtons.length) return;
+  let angle = 0;
+  const rotateBorder = () => {
+    angle = (angle + 1) % 360;
+    rotatingButtons.forEach((button) => {
+      button.style.setProperty("--angle", `${angle}deg`);
+    });
+    requestAnimationFrame(rotateBorder);
+  };
+  rotateBorder();
+});
 window.addEventListener('resize', syncBenchFillHeight);
 window.addEventListener('resize', syncVerdictAIHeight);
 goTo(1);
