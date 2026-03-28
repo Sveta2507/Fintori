@@ -1148,7 +1148,8 @@ footer {
 }
 
 [data-theme="dark"] .step-item {
-  background: rgba(30, 41, 59, 0.82);
+  background: transparent;
+  box-shadow: none;
 }
 
 [data-theme="dark"] .btn-primary {
