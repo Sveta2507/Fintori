@@ -478,11 +478,27 @@ function render(){
   requestAnimationFrame(()=>{
     results.classList.add('is-open');
   });
+  syncBenchFillHeight();
+  setTimeout(syncBenchFillHeight, 120);
   saveResultsSnapshot();
   window.scrollTo({top:0,behavior:'smooth'});
 
   // Trigger AI verdict analysis
   loadVerdictAI(d);
+}
+
+function syncBenchFillHeight() {
+  const benchCard = document.getElementById('resultBench');
+  const costsCard = document.getElementById('resultCosts');
+  const fillArt = document.querySelector('.bench-fill-art');
+  if (!benchCard || !costsCard || !fillArt) return;
+
+  fillArt.style.minHeight = '';
+  if (window.innerWidth <= 980) return;
+
+  const baseHeight = 156;
+  const gap = costsCard.offsetHeight - benchCard.offsetHeight;
+  fillArt.style.minHeight = `${Math.max(baseHeight + gap, baseHeight)}px`;
 }
 
 function startOver(){
@@ -607,15 +623,22 @@ Respond in this EXACT JSON format only, no markdown:
     const text = await callClaudeAPI(prompt);
     const clean = text.replace(/```json|```/g,'').trim();
     const j = JSON.parse(clean);
-    document.getElementById('verdictAILoading').style.display = 'none';
     const content = document.getElementById('verdictAIContent');
-    content.classList.add('ready');
     document.getElementById('vai_problem').innerHTML =
       `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span>${j.problem}`;
     document.getElementById('vai_opportunity').innerHTML =
       `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span>${j.opportunity}`;
     document.getElementById('vai_steps').innerHTML =
       `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ul class="verdict-ai-steps">${j.steps.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+    document.getElementById('verdictAILoading').style.display = 'none';
+    content.classList.add('ready');
+    content.style.maxHeight = '0px';
+    requestAnimationFrame(() => {
+      content.style.maxHeight = content.scrollHeight + 'px';
+      setTimeout(() => {
+        content.style.maxHeight = content.scrollHeight + 'px';
+      }, 220);
+    });
   } catch(e) {
     document.getElementById('verdictAILoading').innerHTML =
       '<div style="font-size:12px;opacity:.7">AI analysis unavailable.</div>';
@@ -689,6 +712,80 @@ function toggleMore(){
   b.innerHTML=open?'<i class="fas fa-minus"></i> Hide more expenses':'<i class="fas fa-plus"></i> Add more expenses';
 }
 
+function exportReport(){
+  const isMobile = window.matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  const results = document.getElementById('results');
+  if(!isMobile || !results){
+    window.print();
+    return;
+  }
+
+  if(typeof html2pdf === 'undefined'){
+    window.print();
+    return;
+  }
+
+  const reportDate = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const verdict = results.querySelector('.verdict');
+  const title = (verdict?.querySelector('.verdict-title')?.textContent || 'Fintori Report').trim();
+  const exportNode = document.createElement('div');
+  exportNode.className = 'mobile-pdf-export';
+  exportNode.innerHTML = `
+    <style>
+      .mobile-pdf-export{font-family:Inter,Segoe UI,Arial,sans-serif;color:#182437;padding:0 0 12px}
+      .mobile-pdf-shell{padding:20px;background:${theme === 'dark' ? '#0f172a' : '#f5f7fb'}}
+      .mobile-pdf-hero{padding:26px 24px;border-radius:24px;background:linear-gradient(135deg,#183d8f,#2f5fbc);color:#fff;margin-bottom:18px}
+      .mobile-pdf-hero h1{margin:0 0 10px;font-size:28px;line-height:1.06}
+      .mobile-pdf-hero p{margin:0;font-size:16px;line-height:1.7}
+      .mobile-pdf-stamp{margin-top:12px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+      .mobile-pdf-panel{background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:18px 18px 20px;margin-bottom:16px;overflow:hidden}
+      .mobile-pdf-panel .card,
+      .mobile-pdf-panel .health-sec,
+      .mobile-pdf-panel .tax-sec{box-shadow:none!important;border-color:#e5e7eb!important;background:#fff!important}
+      .mobile-pdf-panel .card-hdr{padding:0 0 12px!important}
+      .mobile-pdf-panel .card-body,
+      .mobile-pdf-panel #acts,
+      .mobile-pdf-panel .health-grid,
+      .mobile-pdf-panel .tax-grid{padding:0!important}
+      .mobile-pdf-panel .summary-top{border-radius:18px 18px 0 0}
+      .mobile-pdf-panel .summary-breakeven{padding-left:0!important;padding-right:0!important;padding-bottom:0!important}
+      .mobile-pdf-panel .be-box{margin-left:0!important;margin-right:0!important}
+      .mobile-pdf-panel .bench-fill-art,
+      .mobile-pdf-panel .action-row,
+      .mobile-pdf-panel .theme-toggle,
+      .mobile-pdf-panel .tip-btn{display:none!important}
+    </style>
+    <div class="mobile-pdf-shell">
+      <section class="mobile-pdf-hero">
+        <h1>${title}</h1>
+        <p>${verdict?.querySelector('.verdict-body')?.textContent?.trim() || 'Business analysis report.'}</p>
+        <div class="mobile-pdf-stamp">Generated ${reportDate}</div>
+      </section>
+      <section class="mobile-pdf-panel">${results.querySelector('.score-card')?.outerHTML || ''}</section>
+      ${[...results.querySelectorAll('.card')].filter(card => !card.classList.contains('score-card')).map(card => `<section class="mobile-pdf-panel">${card.outerHTML}</section>`).join('')}
+      ${results.querySelector('#vatWarn')?.style.display !== 'none' ? `<section class="mobile-pdf-panel">${results.querySelector('#vatWarn')?.outerHTML || ''}</section>` : ''}
+      ${results.querySelector('.disclaimer') ? `<section class="mobile-pdf-panel">${results.querySelector('.disclaimer').outerHTML}</section>` : ''}
+    </div>
+  `;
+
+  document.body.appendChild(exportNode);
+  const stamp = new Date().toISOString().slice(0,10);
+  const options = {
+    margin: [10, 10, 10, 10],
+    filename: `fintori-report-${stamp}.pdf`,
+    image: { type: 'jpeg', quality: 0.96 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: theme === 'dark' ? '#0f172a' : '#f5f7fb' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+
+  html2pdf().set(options).from(exportNode).save().finally(() => {
+    exportNode.remove();
+  });
+}
+
 initAppChrome();
 syncNavLockState();
+window.addEventListener('resize', syncBenchFillHeight);
 goTo(1);

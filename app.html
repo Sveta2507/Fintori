@@ -343,6 +343,7 @@
   <div class="card" id="resultBench">
     <div class="card-hdr"><div class="cicon">📊</div><h2>vs UK Sector Average</h2></div>
     <div class="card-body" id="bench"></div>
+    <div class="bench-fill-art" aria-hidden="true"></div>
   </div>
 
   <!-- 5. COST BREAKDOWN -->
@@ -438,7 +439,7 @@
   <div class="disclaimer"><i class="fas fa-circle-info"></i> This report is for informational purposes only and does not constitute financial, legal or tax advice. Always consult a qualified accountant or financial adviser before making business decisions. Sources: ONS · HMRC 2025/26 · FSB · British Business Bank.</div>
 
   <div class="action-row">
-    <button class="btn btn-blue" onclick="window.print()">⬇ &nbsp;Save as PDF</button>
+    <button class="btn btn-blue" onclick="exportReport()">⬇ &nbsp;Save as PDF</button>
     <button class="btn btn-ghost" onclick="startOver()">↺ &nbsp;Start New Analysis</button>
   </div>
 
@@ -469,6 +470,7 @@
   </div>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="app.js"></script>
 <script>
   const themeToggle = document.getElementById('themeToggle');

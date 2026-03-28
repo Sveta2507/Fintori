@@ -30,8 +30,8 @@
       <div class="hero-badge"><i class="fas fa-sparkles"></i> Professional Financial Analysis</div>
       <h1>Understand your business health in 10 minutes</h1>
       <p>Enter 3 months of figures and get instant insights: profitability, cash flow, sector benchmarks, and a prioritized action plan.</p>
-      <a href="app.html" class="btn btn-primary btn-lg">
-        <i class="fas fa-arrow-right"></i> Begin Analysis
+      <a href="app.html" class="btn btn-primary btn-lg rotating-cta">
+        <i class="fas fa-arrow-right"></i><span>Begin Analysis</span>
       </a>
       <div class="hero-subtext">
         <span><i class="fas fa-check-circle"></i> No signup needed</span>
@@ -190,8 +190,8 @@
   <section class="final-cta final-cta-wave">
     <h2>Ready to understand your business?</h2>
     <p>Get your complete financial analysis in just 10 minutes.</p>
-    <a href="app.html" class="btn btn-primary btn-xlarge">
-      <i class="fas fa-arrow-right"></i> Start Free Analysis
+    <a href="app.html" class="btn btn-primary btn-xlarge rotating-cta">
+      <i class="fas fa-arrow-right"></i><span>Start Free Analysis</span>
     </a>
   </section>
 </main>
@@ -273,6 +273,20 @@
   updateScrollLines();
   window.addEventListener('scroll', updateScrollLines, { passive: true });
   window.addEventListener('resize', updateScrollLines);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const rotatingButtons = document.querySelectorAll(".rotating-cta");
+    if (!rotatingButtons.length) return;
+    let angle = 0;
+    const rotateBorder = () => {
+      angle = (angle + 1) % 360;
+      rotatingButtons.forEach((button) => {
+        button.style.setProperty("--angle", `${angle}deg`);
+      });
+      requestAnimationFrame(rotateBorder);
+    };
+    rotateBorder();
+  });
 </script>
 </body>
 </html>
