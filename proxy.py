@@ -22,7 +22,9 @@ ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 if not ANTHROPIC_API_KEY:
     raise RuntimeError('Missing ANTHROPIC_API_KEY environment variable')
 
-PROXY_TOKEN = os.getenv('PROXY_TOKEN', 'fyntori-x7k2-mQ9p-2026')
+PROXY_TOKEN = os.getenv('PROXY_TOKEN')
+if not PROXY_TOKEN:
+    raise RuntimeError('Missing PROXY_TOKEN environment variable')
 RATE_LIMIT        = 30          # requests per hour per IP
 ANTHROPIC_MODEL   = 'claude-sonnet-4-20250514'
 MAX_TOKENS        = 1000
