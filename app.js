@@ -501,6 +501,12 @@ function syncBenchFillHeight() {
   fillArt.style.minHeight = `${Math.max(baseHeight + gap, baseHeight)}px`;
 }
 
+function syncVerdictAIHeight(){
+  const content = document.getElementById('verdictAIContent');
+  if(!content || !content.classList.contains('ready')) return;
+  content.style.maxHeight = content.scrollHeight + 'px';
+}
+
 function startOver(){
   const results=document.getElementById('results');
   results.style.display='none';
@@ -640,18 +646,18 @@ Respond in this EXACT JSON format only, no markdown:
     const j = JSON.parse(clean);
     const content = document.getElementById('verdictAIContent');
     document.getElementById('vai_problem').innerHTML =
-      `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span>${j.problem}`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${j.problem}</div>`;
     document.getElementById('vai_opportunity').innerHTML =
-      `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span>${j.opportunity}`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${j.opportunity}</div>`;
     document.getElementById('vai_steps').innerHTML =
-      `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ul class="verdict-ai-steps">${j.steps.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>`;
     document.getElementById('verdictAILoading').style.display = 'none';
     content.classList.add('ready');
     content.style.maxHeight = '0px';
     requestAnimationFrame(() => {
-      content.style.maxHeight = content.scrollHeight + 'px';
+      syncVerdictAIHeight();
       setTimeout(() => {
-        content.style.maxHeight = content.scrollHeight + 'px';
+        syncVerdictAIHeight();
       }, 220);
     });
   } catch(e) {
@@ -853,6 +859,9 @@ function buildWebsitePdfHtml(){
       margin-right:0 !important;
       min-height:280px !important;
       width:100% !important;
+      height:auto !important;
+      overflow:visible !important;
+      padding:42px 32px !important;
     }
     .verdict.good{
       background-image:none !important;
@@ -872,6 +881,69 @@ function buildWebsitePdfHtml(){
     }
     .summary-top::before{
       display:none !important;
+    }
+    .verdict-ai{
+      max-width:none !important;
+      overflow:visible !important;
+      background:none !important;
+      border:none !important;
+      backdrop-filter:none !important;
+      padding:14px 0 0 !important;
+      margin-top:16px !important;
+      text-align:left !important;
+    }
+    .verdict-ai-content,
+    .verdict-ai-content.ready{
+      max-height:none !important;
+      height:auto !important;
+      overflow:visible !important;
+      opacity:1 !important;
+      transform:none !important;
+      pointer-events:auto !important;
+    }
+    .verdict-ai-row{
+      background:none !important;
+      border:none !important;
+      border-radius:0 !important;
+      padding:0 !important;
+      margin:0 0 14px !important;
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+    }
+    .verdict-ai-ttl{
+      display:block !important;
+      margin:0 0 6px !important;
+      font-size:13px !important;
+      letter-spacing:.12em !important;
+    }
+    .verdict-ai-ttl i{
+      display:none !important;
+    }
+    .verdict-ai-body{
+      font-size:14px !important;
+      line-height:1.7 !important;
+    }
+    .verdict-ai-steps{
+      margin:4px 0 0 !important;
+      padding-left:18px !important;
+      list-style:disc !important;
+      display:block !important;
+    }
+    .verdict-ai-steps li{
+      display:list-item !important;
+      margin:0 0 6px !important;
+      padding:0 !important;
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+    }
+    .verdict-ai-steps li::before{
+      display:none !important;
+      content:none !important;
+    }
+    .verdict-ai-steps li span{
+      display:inline !important;
+      font-size:14px !important;
+      line-height:1.7 !important;
     }
     .bench-fill-art{
       background-image:none !important;
@@ -1396,4 +1468,5 @@ async function exportReport(){
 initAppChrome();
 syncNavLockState();
 window.addEventListener('resize', syncBenchFillHeight);
+window.addEventListener('resize', syncVerdictAIHeight);
 goTo(1);
