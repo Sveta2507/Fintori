@@ -16,6 +16,9 @@ const BM={
 
 // ── HELPERS ──────────────────────────────────────────────────────────
 const v=id=>parseFloat(document.getElementById(id)?.value)||0;
+document.addEventListener('input', e => {
+  if(e.target.matches('input[type=number]')) clearFieldError(e.target.id);
+});
 const fm=n=>'£'+Math.round(Math.abs(n)).toLocaleString('en-GB');
 const fp=n=>(n*100).toFixed(1)+'%';
 const fmSign=n=>(n<0?'-£':'£')+Math.round(Math.abs(n)).toLocaleString('en-GB');
@@ -152,6 +155,72 @@ function hasValue(id){
   return !!el && el.value.trim()!=='';
 }
 
+
+
+const FIELD_MONETARY = ['r1','r2','r3','cogs','dlab','rent','wages','nic','loan',
+                        'util','ins','mkt','prof','sw','other',
+                        'cash','debtors','creditors','debt','stock'];
+
+function validateField(id){
+  const el = document.getElementById(id);
+  if(!el) return null;
+  const raw = el.value.trim();
+  if(raw === '') return 'This field is required.';
+  const n = parseFloat(raw);
+  if(isNaN(n)) return 'Please enter a valid number.';
+  if(FIELD_MONETARY.includes(id)){
+    if(n < 0)        return 'Value cannot be negative.';
+    if(n > 10000000) return 'Maximum value is £10,000,000.';
+  }
+  if(['r1','r2','r3'].includes(id) && n <= 0)
+    return 'Revenue must be greater than zero.';
+  if(id==='emp'){
+    if(n<1 || Math.floor(n)!==n) return 'Enter a whole number of 1 or more.';
+    if(n>9999)                   return 'Maximum is 9,999 employees.';
+  }
+  return null;
+}
+
+function showFieldError(id, message){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.add('field-error');
+  // Insert tip AFTER .inp-wrap (its parent), not inside it —
+  // so the £ prefix position (top:50%) is never affected.
+  const wrap = el.closest('.inp-wrap');
+  const anchor = wrap || el.parentElement;
+  const container = anchor.parentElement;
+  if(container.querySelector('.field-error-tip')) return;
+  const tip = document.createElement('span');
+  tip.className = 'field-error-tip';
+  tip.textContent = message;
+  anchor.insertAdjacentElement('afterend', tip);
+}
+
+function clearFieldError(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('field-error');
+  const wrap = el.closest('.inp-wrap');
+  const anchor = wrap || el.parentElement;
+  anchor.parentElement?.querySelector('.field-error-tip')?.remove();
+}
+
+function validateFieldsForStep(step){
+  const fields = {
+    1: ['r1','r2','r3'],
+    2: ['cogs','dlab','rent','wages','nic','loan'],
+    3: ['cash','debtors','creditors','debt','stock','emp']
+  }[step] || [];
+  let ok = true;
+  fields.forEach(id => {
+    const err = validateField(id);
+    if(err){ showFieldError(id, err); ok = false; }
+    else   { clearFieldError(id); }
+  });
+  return ok;
+}
+
 function validateStep(step){
   if(step===1) return ['r1','r2','r3'].every(hasValue);
   if(step===2) return ['cogs','dlab','rent','wages','nic','loan'].every(hasValue);
@@ -218,7 +287,9 @@ function requestStep(n){
 }
 
 function advanceStep(step){
-  if(!validateStep(step)){
+  // First run per-field validation to show inline errors
+  const fieldsOk=validateFieldsForStep(step);
+  if(!validateStep(step)||!fieldsOk){
     showStepError(step);
     return;
   }
@@ -698,12 +769,16 @@ function backendUrl(path) {
   return `${getBackendBaseUrl()}/${String(path).replace(/^\/+/, '')}`;
 }
 
+// SECURITY: Never hard-code PROXY_TOKEN here.
+// The server must inject it at page-load time as:
+//   <script>window.FINTORI_TOKEN = "{{ proxy_token }}";</script>
+// If the variable is absent the proxy will return 401 — intentional.
 async function callClaudeAPI(prompt) {
   const response = await fetch(backendUrl('proxy.py'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Proxy-Token': 'fyntori-x7k2-mQ9p-2026'
+      'X-Proxy-Token': window.FINTORI_TOKEN || ''
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
@@ -1568,7 +1643,7 @@ async function exportReport(){
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Proxy-Token': 'fyntori-x7k2-mQ9p-2026'
+        'X-Proxy-Token': window.FINTORI_TOKEN || ''  // SECURITY: injected by server, never hard-code
       },
       body: JSON.stringify({
         filename: `fintori-report-${stamp}.pdf`,

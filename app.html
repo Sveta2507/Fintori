@@ -57,9 +57,9 @@
         </label>
         <div class="tip-box" id="t_rev">Enter all income including VAT if you're VAT-registered. If you only have a rough figure for all 3 months, divide by 3 and enter the same number each month.</div>
         <div class="mo-grid">
-          <div><span class="mo-lbl">Month 1</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r1" placeholder="0" oninput="recalc()"></div></div>
-          <div><span class="mo-lbl">Month 2</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r2" placeholder="0" oninput="recalc()"></div></div>
-          <div><span class="mo-lbl">Month 3</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r3" placeholder="0" oninput="recalc()"></div></div>
+          <div><span class="mo-lbl">Month 1</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r1" placeholder="0" min="0" oninput="recalc()"></div></div>
+          <div><span class="mo-lbl">Month 2</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r2" placeholder="0" min="0" oninput="recalc()"></div></div>
+          <div><span class="mo-lbl">Month 3</span><div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="r3" placeholder="0" min="0" oninput="recalc()"></div></div>
         </div>
       </div>
 
@@ -93,14 +93,14 @@
           <button class="tip-btn" onclick="tip('t_cogs')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_cogs">The cost of what you buy to sell — raw materials, ingredients, stock. Only include costs that directly relate to what you sell. Staff wages go in the next section.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="cogs" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="cogs" placeholder="0"  min="0"></div>
       </div>
       <div class="field">
         <label>Direct Labour
           <button class="tip-btn" onclick="tip('t_dlab')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_dlab">Wages of staff who directly make or deliver your product — kitchen staff, production workers. Not office or admin staff.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="dlab" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="dlab" placeholder="0"  min="0"></div>
       </div>
     </div>
   </div>
@@ -114,28 +114,28 @@
           <button class="tip-btn" onclick="tip('t_rent')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_rent">Your monthly rent plus business rates. Note: retail, hospitality and leisure businesses get 40% rates relief in 2025/26, capped at £110,000.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="rent" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="rent" placeholder="0"  min="0"></div>
       </div>
       <div class="field">
         <label>Staff Wages & Salaries
           <button class="tip-btn" onclick="tip('t_wages')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_wages">Gross wages for all non-production staff. National Living Wage from Apr 2025: £12.21/hr for staff aged 21+.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="wages" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="wages" placeholder="0"  min="0"></div>
       </div>
       <div class="field">
         <label>Employer National Insurance
           <button class="tip-btn" onclick="tip('t_nic')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_nic">13.8% on each employee's wages above £5,000/yr (from Apr 2025). You can offset up to £10,500/yr via Employment Allowance — claim this through your payroll software.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="nic" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="nic" placeholder="0"  min="0"></div>
       </div>
       <div class="field">
         <label>Loan / Finance Repayments
           <button class="tip-btn" onclick="tip('t_loan')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_loan">Total monthly repayments on all business loans, overdrafts, hire purchase, and credit cards.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="loan" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="loan" placeholder="0"  min="0"></div>
       </div>
 
       <button class="more-btn" onclick="toggleMore()" id="moreBtn">＋ Add more expenses (utilities, insurance, marketing…)</button>
@@ -143,30 +143,30 @@
         <div class="divider"></div>
         <div class="field">
           <label>Utilities <span style="font-weight:400;color:var(--g400)">(gas, electricity, water)</span></label>
-          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="util" placeholder="0"></div>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="util" placeholder="0"  min="0"></div>
         </div>
         <div class="field">
           <label>Insurance
             <button class="tip-btn" onclick="tip('t_ins')">ℹ️</button>
           </label>
           <div class="tip-box" id="t_ins">Public liability is recommended. Employer's liability is legally required if you have staff. Professional Indemnity if you give advice.</div>
-          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="ins" placeholder="0"></div>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="ins" placeholder="0"  min="0"></div>
         </div>
         <div class="field">
           <label>Marketing & Advertising</label>
-          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="mkt" placeholder="0"></div>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="mkt" placeholder="0"  min="0"></div>
         </div>
         <div class="field">
           <label>Professional Fees <span style="font-weight:400;color:var(--g400)">(accountant, solicitor)</span></label>
-          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="prof" placeholder="0"></div>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="prof" placeholder="0"  min="0"></div>
         </div>
         <div class="field">
           <label>Software & Subscriptions</label>
-          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="sw" placeholder="0"></div>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="sw" placeholder="0"  min="0"></div>
         </div>
         <div class="field">
           <label>Other Operating Expenses</label>
-          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="other" placeholder="0"></div>
+          <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="other" placeholder="0"  min="0"></div>
         </div>
       </div>
 
@@ -208,7 +208,7 @@
           <button class="tip-btn" onclick="tip('t_cash')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_cash">Total cash across all your business accounts right now. This is used to calculate how many months you can survive without new revenue.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="cash" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="cash" placeholder="0"  min="0"></div>
       </div>
 
       <div class="field">
@@ -216,7 +216,7 @@
           <button class="tip-btn" onclick="tip('t_deb')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_deb">Money customers owe you but haven't paid yet — outstanding invoices. Used to calculate Debtor Days: how long customers take to pay.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="debtors" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="debtors" placeholder="0"  min="0"></div>
       </div>
 
       <div class="field">
@@ -224,7 +224,7 @@
           <button class="tip-btn" onclick="tip('t_cred')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_cred">Money you owe suppliers but haven't paid yet. Used to calculate Working Capital — your ability to pay short-term obligations.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="creditors" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="creditors" placeholder="0"  min="0"></div>
       </div>
 
       <div class="field">
@@ -232,7 +232,7 @@
           <button class="tip-btn" onclick="tip('t_debt')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_debt">All outstanding loans, overdraft balance, credit cards, hire purchase. Not monthly payments — the total amount still owed.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="debt" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="debt" placeholder="0"  min="0"></div>
       </div>
 
       <div class="field">
@@ -240,7 +240,7 @@
           <button class="tip-btn" onclick="tip('t_stock')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_stock">Current value of unsold stock at cost price. Leave blank if you're a service business with no physical stock.</div>
-        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="stock" placeholder="0"></div>
+        <div class="inp-wrap"><span class="inp-pfx">£</span><input type="number" id="stock" placeholder="0"  min="0"></div>
       </div>
 
       <div class="field">
@@ -248,7 +248,7 @@
           <button class="tip-btn" onclick="tip('t_emp')">ℹ️</button>
         </label>
         <div class="tip-box" id="t_emp">Full-time equivalent (FTE). Part-time staff: count each as a fraction — e.g. 2 part-timers working 20hrs each = 1 FTE.</div>
-        <div class="inp-wrap"><span class="inp-pfx">#</span><input type="number" id="emp" placeholder="0" style="padding-left:28px"></div>
+        <div class="inp-wrap"><span class="inp-pfx">#</span><input type="number" id="emp" placeholder="1" min="1" step="1" style="padding-left:28px"></div>
       </div>
 
     </div>
