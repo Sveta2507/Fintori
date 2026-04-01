@@ -524,9 +524,7 @@ function render(){
         <div class="tl-left">
           <div class="tl-metric" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
             ${t.m}
-            <button class="ai-why-btn" id="btn_${uid}" data-ctx='${ctxData.replace(/'/g,"&#39;")}' data-metric="${t.m}" onclick="askWhy('${uid}', this.dataset.metric, this.dataset.ctx)">
-              <span class="ai-icon"><i class="fas fa-wand-magic-sparkles"></i></span> Why?
-            </button>
+            
           </div>
           <div class="tl-value">${t.val}</div>
         </div>
@@ -1004,7 +1002,7 @@ function preparePdfClone(node){
   if(!node) return null;
 
   node.querySelectorAll('script').forEach(el => el.remove());
-  node.querySelectorAll('.theme-toggle, .hdr-badge, .sbtn-home, .action-row, .toast-stack').forEach(el => el.remove());
+  node.querySelectorAll('.theme-toggle, .hdr-badge, .sbtn-home, .action-row, .toast-stack, .verdict-ai, .verdict-ai-trigger').forEach(el => el.remove());
   node.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
 
   return node;
@@ -1171,6 +1169,7 @@ function buildWebsitePdfHtml(){
     }
     #results .action-row,
     .bench-fill-art,
+    #results .verdict-ai,
     #exportPdfBtn{
       display:none !important;
     }
@@ -1626,49 +1625,87 @@ function renderTextPdf(doc, report){
 }
 
 async function exportReport(){
-  const isMobile = window.matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
   const results = document.getElementById('results');
-  if(!isMobile || !results){
-    window.print();
+  if(!results){
+    showToast('Unable to generate PDF. Please refresh and try again.');
     return;
   }
 
   setExportButtonState('loading');
-  await new Promise(resolve => window.setTimeout(resolve, 50));
+  await new Promise(resolve => window.setTimeout(resolve, 80));
 
   const stamp = new Date().toISOString().slice(0,10);
 
   try {
-    const response = await fetch(backendUrl('pdf.py'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Proxy-Token': window.FINTORI_TOKEN || ''  // SECURITY: injected by server, never hard-code
-      },
-      body: JSON.stringify({
-        filename: `fintori-report-${stamp}.pdf`,
-        html: buildWebsitePdfHtml()
-      })
+    if(typeof window.jspdf === 'undefined') throw new Error('jsPDF not loaded.');
+    if(typeof window.html2canvas === 'undefined') throw new Error('html2canvas not loaded.');
+
+    const { jsPDF } = window.jspdf;
+
+    // Рендерим HTML в скрытый div прямо на странице
+    const report = buildMobilePdfData();
+    const html = buildMobilePdfHtml(report);
+
+    const container = document.createElement('div');
+    container.style.cssText = [
+      'position:fixed',
+      'left:-9999px',
+      'top:0',
+      'width:800px',
+      'background:#f5f7fb',
+      'z-index:-1',
+      'pointer-events:none',
+    ].join(';');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    // Ждём рендера и шрифтов
+    await new Promise(resolve => window.setTimeout(resolve, 600));
+    await document.fonts.ready;
+
+    const target = container.querySelector('.pdf-export') || container; 
+    const totalHeight = target.scrollHeight || container.scrollHeight;
+
+
+    const canvas = await html2canvas(target, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#f5f7fb',
+      width: 800,
+      height: totalHeight,
+      windowWidth: 800,
+      scrollX: 0,
+      scrollY: 0,
+      logging: false,
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `PDF export failed (${response.status})`);
+    document.body.removeChild(container);
+
+    if(canvas.width === 0 || canvas.height === 0){
+      throw new Error('Canvas is empty — nothing to render.');
     }
 
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `fintori-report-${stamp}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = (canvas.height * imgW) / canvas.width;
+    const pageCount = Math.ceil(imgH / pageH);
+
+    for(let i = 0; i < pageCount; i++){
+      if(i > 0) doc.addPage();
+      doc.addImage(imgData, 'JPEG', 0, -(i * pageH), imgW, imgH);
+    }
+
+    doc.save(`fintori-report-${stamp}.pdf`);
     setExportButtonState('success');
-  } catch (error) {
+
+  } catch(error){
+    console.error('PDF export error:', error);
     setExportButtonState('idle');
-    showToast('PDF export failed on this device. Please try again or use desktop Save as PDF.');
+    showToast('PDF export failed: ' + error.message);
   }
 }
 

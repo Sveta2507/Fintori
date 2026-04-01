@@ -1542,7 +1542,7 @@ footer {
   align-items:center;
   justify-content:center;
   gap:8px;
-  padding:10px 16px;
+  padding:16px 28px;
   --angle: 0deg;
   border-radius:999px;
   border:3px solid transparent;
@@ -1560,7 +1560,7 @@ footer {
     ) border-box;
   color:var(--base-color);
   -webkit-text-fill-color: var(--base-color);
-  font:600 13px/1 var(--primary-font);
+  font:600 20px/1 var(--primary-font);
   cursor:pointer;
   transition:background-color var(--transition-smooth),border-color var(--transition-smooth),transform var(--transition-smooth),box-shadow var(--transition-smooth),color var(--transition-smooth);
   appearance:none;
