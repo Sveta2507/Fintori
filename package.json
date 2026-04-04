@@ -1,0 +1,16 @@
+{
+  "name": "fintori-tests",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "vitest": {
+    "exclude": ["tests/e2e.spec.js", "node_modules/**"]
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "@playwright/test": "^1.44.0"
+  }
+}
