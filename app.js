@@ -387,6 +387,11 @@ function generateResults(){
     showStepError(3);
     return;
   }
+  const fieldsOk = validateFieldsForStep(3);
+  if(!fieldsOk){
+    showStepError(3);
+    return;
+  }
   saveFormState();
   clearStepError(3);
   unlockedStep=4;

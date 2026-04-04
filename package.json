@@ -2,19 +2,26 @@
   "name": "fintori-tests",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:jest": "jest",
+    "test:jest:watch": "jest --watch",
+    "test:jest:coverage": "jest --coverage",
+    "test:vitest": "vitest run",
+    "test:vitest:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0"
+    "jest-environment-jsdom": "^29.7.0",
+    "vitest": "^1.6.0",
+    "@playwright/test": "^1.44.0"
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "testMatch": [
-      "**/tests/**/*.test.js"
-    ]
+    "testMatch": ["**/tests/**/*.test.js"]
+  },
+  "vitest": {
+    "exclude": ["tests/e2e.spec.js", "node_modules/**"]
   }
 }
