@@ -7,7 +7,7 @@
  * All calculations mirror the fixed app.js logic.
  */
 
-const { calcFromInputs, BM } = require('./calc.logic');
+import { calcFromInputs, BM } from './calc.js';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

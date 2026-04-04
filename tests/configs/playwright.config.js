@@ -1,8 +1,8 @@
-// playwright.config.js
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests',
+  // testDir относительно этого файла → tests/configs/../ = tests/
+  testDir: '..',
   testMatch: '**/*.spec.js',
   use: {
     headless: true,

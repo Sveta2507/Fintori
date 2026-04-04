@@ -5,7 +5,7 @@ import {
   getVerdict,
   getActions,
   BM
-} from '../calc.js';
+} from './calc.js';
 
 // ─────────────────────────────────────────────
 // БЛОК 1: Валидация полей
@@ -68,17 +68,17 @@ describe('validateField — денежные поля (cogs, rent и т.д.)', (
 });
 
 describe('validateField — поле emp (сотрудники)', () => {
-  it('0 → ошибка (минимум 1)', () => {
-    expect(validateField('emp', '0')).toBe('Enter a whole number of 1 or more.');
+  it('0 → валидно (Solo business, минимум 0)', () => {
+    expect(validateField('emp', '0')).toBeNull();
   });
   it('1 → валидно', () => {
     expect(validateField('emp', '1')).toBeNull();
   });
   it('дробное → ошибка', () => {
-    expect(validateField('emp', '1.5')).toBe('Enter a whole number of 1 or more.');
+    expect(validateField('emp', '1.5')).toBe('Enter a whole number of 0 or more.');
   });
   it('отрицательное → ошибка', () => {
-    expect(validateField('emp', '-1')).toBe('Enter a whole number of 1 or more.');
+    expect(validateField('emp', '-1')).toBe('Enter a whole number of 0 or more.');
   });
   it('9999 → валидно (максимум)', () => {
     expect(validateField('emp', '9999')).toBeNull();
@@ -126,8 +126,9 @@ describe('calcFromInputs — базовый сценарий', () => {
     expect(d.totProfit).toBeCloseTo(profit);
     expect(d.netMgn).toBeCloseTo(profit / 33000);
   });
-  it('runway = cash / avgRev', () => {
-    expect(d.runway).toBeCloseTo(15000 / 11000);
+  it('runway = cash / totalCostsM (ИСПРАВЛЕНО: делим на расходы, не выручку)', () => {
+    // BASE: cogsM(4000) + opexM(3500) = totalCostsM(7500)
+    expect(d.runway).toBeCloseTo(15000 / 7500);
   });
   it('revGrowth = (r2 - r1) / r1', () => {
     expect(d.revGrowth).toBeCloseTo((11000 - 10000) / 10000);

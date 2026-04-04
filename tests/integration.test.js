@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcFromInputs, getVerdict, getActions } from '../calc.js';
+import { calcFromInputs, getVerdict, getActions } from './calc.js';
 
 // Сценарий 1: Здоровый растущий IT-стартап
 describe('Сценарий: Здоровый IT-бизнес', () => {

@@ -291,7 +291,8 @@ test.describe('Шаг 2 — Валидация Costs', () => {
 // Шаг 3 — Валидация Business Details
 // ─────────────────────────────────────────────
 test.describe('Шаг 3 — Валидация Business Details', () => {
-  test('emp=0: браузерная или JS-валидация блокирует переход', async ({ page }) => {
+  test('emp=0: Solo business — переход к результатам разрешён', async ({ page }) => {
+  // emp=0 теперь валиден (Solo business без сотрудников) — результаты должны появиться
   await page.goto(APP_URL);
   await fillStep1(page);
   await page.locator('#s1 .btn-navy').click();
@@ -300,8 +301,8 @@ test.describe('Шаг 3 — Валидация Business Details', () => {
   await fillStep3(page);
   await page.fill('#emp', '0');
   await page.locator('#s3 .btn-navy').click();
-  // Либо JS-ошибка, либо остаёмся на шаге 3 (результаты не показаны)
-  await expect(page.locator('#results')).not.toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#results')).toBeVisible();
   });
 
   test('emp=дробное: валидация блокирует переход к результатам', async ({ page }) => {
