@@ -130,16 +130,6 @@ function bindFormPersistence(){
   });
 }
 
-function toggleMore(){
-  const f=document.getElementById('moreFields');
-  const b=document.getElementById('moreBtn');
-  const open=!f.classList.contains('open');
-  const height=f.scrollHeight;
-  f.style.setProperty('--more-open-height', height + 'px');
-  f.classList.toggle('open', open);
-  b.textContent=open?'− Hide more expenses':'＋ Add more expenses';
-}
-
 function recalc(){
   const d=document.getElementById('vatReg').checked?1.2:1;
   ['1','2','3'].forEach(i=>{
@@ -175,7 +165,7 @@ function validateField(id){
   if(['r1','r2','r3'].includes(id) && n <= 0)
     return 'Revenue must be greater than zero.';
   if(id==='emp'){
-    if(n<1 || Math.floor(n)!==n) return 'Enter a whole number of 1 or more.';
+    if(n<0 || Math.floor(n)!==n) return 'Enter a whole number of 0 or more.';
     if(n>9999)                   return 'Maximum is 9,999 employees.';
   }
   return null;
@@ -355,7 +345,7 @@ function calc(){
   const cash=v('cash'), debt=v('debt'), debtors=v('debtors'), creditors=v('creditors');
   const stock=v('stock'), emp=v('emp');
 
-  const runway=avgRev>0?cash/avgRev:0;
+  const runway=totalCostsM>0?cash/totalCostsM:null;
   const debtRatio=avgRev>0?debt/avgRev:0;
   const revGrowth=r1>0?(r2-r1)/r1:0;
 
@@ -420,13 +410,13 @@ function render(){
   const redCount=[
     d.netMgn<0,
     d.grossMgn<0.15,
-    d.runway<1&&d.avgRev>0,
+    d.runway!==null&&d.runway<1,
     d.wcr!==null&&d.wcr<1,
     d.debtRatio>6,
   ].filter(Boolean).length;
   const amberCount=[
     d.netMgn>=0&&d.netMgn<0.05,
-    d.runway>=1&&d.runway<3,
+    d.runway!==null&&d.runway>=1&&d.runway<3,
     d.debtorDays!==null&&d.debtorDays>60,
   ].filter(Boolean).length;
 
@@ -449,7 +439,7 @@ function render(){
   profEl.className='kpi-val'+(d.totProfit<0?' neg':'');
   document.getElementById('k_margin').textContent=fp(d.netMgn);
   document.getElementById('k_ebitda').textContent=fmSign(d.ebitdaM)+'/mo';
-  document.getElementById('k_runway').textContent=d.avgRev>0?d.runway.toFixed(1)+' mo':'—';
+  document.getElementById('k_runway').textContent=d.runway!==null?d.runway.toFixed(1)+' mo':'—';
   document.getElementById('k_be').textContent=d.breakeven!==null?fm(d.breakeven)+'/mo':'—';
 
   // ── BREAKEVEN ──
@@ -486,8 +476,8 @@ function render(){
      aiCtx:{metric:'Revenue Trend',value:(d.revGrowth>=0?'+':'')+fp(d.revGrowth),status:d.revGrowth>0?'good':d.revGrowth===0?'moderate':'bad',m1:Math.round(d.r1),m2:Math.round(d.r2),m3:Math.round(d.r3)}},
   ];
   const tlCash=[
-    {m:'Cash Runway',       val:d.avgRev>0?d.runway.toFixed(1)+' months':'—', s:d.runway>=3?'green':d.runway>=1?'amber':'red', l:d.runway>=3?'Good':d.runway>=1?'Tight':'Danger',
-     aiCtx:{metric:'Cash Runway',value:d.avgRev>0?d.runway.toFixed(1)+' months':'N/A',status:d.runway>=3?'good':d.runway>=1?'moderate':'bad',cash:Math.round(d.cash),avgMonthlyCosts:Math.round(d.totalCostsM),avgRev:Math.round(d.avgRev)}},
+    {m:'Cash Runway',       val:d.runway!==null?d.runway.toFixed(1)+' months':'—', s:d.runway===null?'green':d.runway>=3?'green':d.runway>=1?'amber':'red', l:d.runway===null?'No cost data':d.runway>=3?'Good':d.runway>=1?'Tight':'Danger',
+     aiCtx:{metric:'Cash Runway',value:d.runway!==null?d.runway.toFixed(1)+' months':'N/A',status:d.runway===null?'good':d.runway>=3?'good':d.runway>=1?'moderate':'bad',cash:Math.round(d.cash),avgMonthlyCosts:Math.round(d.totalCostsM),avgRev:Math.round(d.avgRev)}},
     {m:'Working Capital',   val:d.wcr!==null?d.wcr.toFixed(2)+'x':'—',       s:d.wcr===null?'green':d.wcr>=1.5?'green':d.wcr>=1?'amber':'red', l:d.wcr===null?'Not enough data':d.wcr>=1.5?'Healthy':d.wcr>=1?'Tight':'Danger',
      aiCtx:{metric:'Working Capital',value:d.wcr!==null?d.wcr.toFixed(2)+'x':'N/A',status:d.wcr===null?'good':d.wcr>=1.5?'good':d.wcr>=1?'moderate':'bad',cash:Math.round(d.cash),debtors:Math.round(d.debtors),creditors:Math.round(d.creditors),debt:Math.round(d.debt),workingCapital:Math.round(d.workingCapital)}},
     {m:'Debt / Revenue',    val:d.avgRev>0?d.debtRatio.toFixed(1)+'x':'—',   s:d.debtRatio<=3?'green':d.debtRatio<=6?'amber':'red', l:d.debtRatio<=3?'Manageable':d.debtRatio<=6?'Monitor':'High',
@@ -509,7 +499,10 @@ function render(){
     tlEff.push({m:'Stock Turnover',val:sd+' days (target '+bsd+'d)',s:sd<=bsd?'green':sd<=bsd*2?'amber':'red',l:sd<=bsd?'Good':sd<=bsd*2?'Monitor':'Slow',
       aiCtx:{metric:'Stock Turnover',value:sd+' days',status:sd<=bsd?'good':sd<=bsd*2?'moderate':'bad',stock:Math.round(d.stock),stockDays:sd,benchmarkDays:bsd,cogsM:Math.round(d.cogsM)}});
   }
-  if(d.revPerEmp!==null&&d.emp>0){
+  if(d.emp===0){
+    tlEff.push({m:'Revenue / Employee',val:'Solo business — no employees',s:'green',l:'Solo',
+      aiCtx:{metric:'Revenue per Employee',value:'Solo business',status:'good',employees:0,annualRev:Math.round(d.avgRev*12)}});
+  } else if(d.revPerEmp!==null&&d.emp>0){
     const rpe=Math.round(d.revPerEmp);
     tlEff.push({m:'Revenue / Employee',val:'£'+rpe.toLocaleString('en-GB')+'/yr',s:rpe>=80000?'green':rpe>=40000?'amber':'red',l:rpe>=80000?'Strong':rpe>=40000?'Average':'Low',
       aiCtx:{metric:'Revenue per Employee',value:'£'+rpe.toLocaleString('en-GB')+'/yr',status:rpe>=80000?'good':rpe>=40000?'moderate':'bad',revPerEmp:rpe,employees:d.emp,annualRev:Math.round(d.avgRev*12),totalWages:Math.round((v('wages')+v('dlab'))*12)}});
@@ -581,10 +574,10 @@ function render(){
   if(d.netMgn>=0&&d.netMgn<.05) acts.push({p:'red',t:'<strong>Net margin below 5%.</strong> Review your top 3 cost lines immediately — target a 10% reduction on each.'});
   if(d.grossMgn<.15)       acts.push({p:'red',  t:'<strong>Gross margin critically low.</strong> Review your pricing — even a 5% price increase can dramatically improve this.'});
   if(d.breakeven!==null&&d.breakevenGap<0) acts.push({p:'red',t:'<strong>Below breakeven by '+fm(Math.abs(d.breakevenGap))+'/month.</strong> You need to either increase revenue or cut fixed costs urgently.'});
-  if(d.runway<1&&d.avgRev>0) acts.push({p:'red',t:'<strong>Less than 1 month cash.</strong> Contact your bank about an overdraft or emergency business loan today.'});
+  if(d.runway!==null&&d.runway<1) acts.push({p:'red',t:'<strong>Less than 1 month cash.</strong> Contact your bank about an overdraft or emergency business loan today.'});
   if(d.wcr!==null&&d.wcr<1) acts.push({p:'red', t:'<strong>Working Capital Ratio below 1.0x.</strong> You may struggle to pay short-term obligations. Speak to your bank about a working capital facility.'});
   if(d.debtorDays!==null&&d.debtorDays>60) acts.push({p:'red',t:'<strong>Debtor days '+Math.round(d.debtorDays)+'d — dangerously slow.</strong> Chase all overdue invoices. Consider a 2% early payment discount or invoice factoring.'});
-  if(d.runway>=1&&d.runway<3) acts.push({p:'amber',t:'<strong>Cash runway under 3 months.</strong> Cut non-essential spending and chase all outstanding invoices this week.'});
+  if(d.runway!==null&&d.runway>=1&&d.runway<3) acts.push({p:'amber',t:'<strong>Cash runway under 3 months.</strong> Cut non-essential spending and chase all outstanding invoices this week.'});
   if(d.revGrowth<0)         acts.push({p:'amber',t:'<strong>Revenue declined month-on-month.</strong> Contact your top 5 customers this week — focus on retention.'});
   if(d.debtRatio>6)         acts.push({p:'amber',t:'<strong>Debt level is high ('+d.debtRatio.toFixed(1)+'x monthly revenue).</strong> Speak to a financial adviser about refinancing or a repayment plan.'});
   if(d.debtorDays!==null&&d.debtorDays>30&&d.debtorDays<=60) acts.push({p:'amber',t:'<strong>Debtor days '+Math.round(d.debtorDays)+'d.</strong> Target for your sector is '+d.bench.debtDays+'d. Send payment reminders 7 days before and on the due date.'});
@@ -606,7 +599,7 @@ function render(){
     {tone:'green',text:'Verify all staff are paid at least £12.21/hr (National Living Wage, Apr 2025).'},
   ];
   if(d.totRev>=67500) urgent.unshift({tone:'amber',text:'Register for VAT — you are approaching the £90,000 annual threshold. Deadline: 30 days after exceeding it.'});
-  if(d.runway<1&&d.avgRev>0) urgent.unshift({tone:'red',text:'Cash runway critical — contact your bank today about an overdraft or emergency facility.'});
+  if(d.runway!==null&&d.runway<1) urgent.unshift({tone:'red',text:'Cash runway critical — contact your bank today about an overdraft or emergency facility.'});
   document.getElementById('urgentCl').innerHTML=urgent.map(item=>`
     <label class="ck-item"><input type="checkbox" disabled>${checklistLeadHTML(item.tone)}<span class="ck-txt">${item.text}</span></label>`).join('');
 
