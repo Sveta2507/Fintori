@@ -26,8 +26,8 @@ PROXY_TOKEN = os.getenv('PROXY_TOKEN')
 if not PROXY_TOKEN:
     raise RuntimeError('Missing PROXY_TOKEN environment variable')
 RATE_LIMIT        = 30          # requests per hour per IP
-ANTHROPIC_MODEL   = 'claude-sonnet-4-20250514'
-MAX_TOKENS        = 1000
+ANTHROPIC_MODEL   = 'claude-sonnet-4-6'
+MAX_TOKENS        = 400
 
 app = Flask(__name__)
 
@@ -73,30 +73,83 @@ def _check_rate_limit(ip: str) -> bool:
 # ── MAIN PROXY ENDPOINT ───────────────────────────────────────────────────────
 @app.route('/proxy.py', methods=['OPTIONS', 'POST'])
 def proxy():
-    # Pre-flight
     if request.method == 'OPTIONS':
         return make_response('', 200)
 
-    # Token auth
     token = request.headers.get('X-Proxy-Token', '')
     if token != PROXY_TOKEN:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    # Rate limit
     ip = request.remote_addr or 'unknown'
     if not _check_rate_limit(ip):
         return jsonify({'error': 'Rate limit exceeded. Try again later.'}), 429
 
-    # Parse body
     payload = request.get_json(silent=True)
     if not payload:
         return jsonify({'error': 'Invalid or empty JSON body'}), 400
 
-    # Force model & max_tokens (same as PHP version)
+    # Force the model and tokens
     payload['model']      = ANTHROPIC_MODEL
     payload['max_tokens'] = MAX_TOKENS
 
-    # Forward to Anthropic
+    # ── ADDING A SYSTEM PROMPT WITH CACHING ──────────────────────
+    # This block is sent as a system request with cache_control.
+    # Anthropic caches it for 5 minutes—repeat requests do not consume
+    # access tokens for this text (only ~10% cache read fee).
+    SYSTEM_PROMPT = """You are a precise UK small business financial analyst. You give factual, conservative analysis based only on provided numbers. Never speculate beyond the data. Never give tax advice — always recommend consulting a qualified accountant for tax matters.
+
+UK TAX & COMPLIANCE REFERENCE (2025/26):
+- Corporation Tax: 19% (profits up to £50,000), 25% (profits over £250,000), marginal relief between
+- VAT registration threshold: £90,000 annual taxable turnover. Must register within 30 days of exceeding threshold.
+- VAT standard rate: 20%. Reduced rate 5%. Zero rate 0%.
+- National Living Wage (Apr 2025): £12.21/hr (21+), £10.00/hr (18-20), £7.55/hr (under 18 & apprentice)
+- Employer NIC: 15% on earnings above £5,000/yr secondary threshold (from Apr 2025)
+- Employee NIC: 8% on earnings £12,570–£50,270, 2% above
+- Income Tax bands: Personal allowance £12,570. Basic rate 20% (£12,571–£50,270). Higher rate 40% (£50,271–£125,140). Additional rate 45% above.
+- Business rates: based on rateable value, multiplier 49.9p (small) or 54.6p (standard) 2025/26
+- Annual Investment Allowance: £1,000,000
+- R&D relief: SME scheme 186% deduction or 13% RDEC credit
+- Making Tax Digital: mandatory for VAT-registered businesses
+
+UK SME FINANCIAL BENCHMARKS BY SECTOR (ONS/HMRC 2024/25):
+Hospitality: gross margin 25%, net margin 5.5%, debtor days 21, stock days 14
+Retail Physical: gross margin 35%, net margin 4%, debtor days 30, stock days 45
+E-commerce: gross margin 40%, net margin 8.5%, debtor days 14, stock days 30
+Construction: gross margin 20%, net margin 6%, debtor days 45, stock days 60
+Professional Services: gross margin 60%, net margin 20%, debtor days 30
+IT/Technology: gross margin 65%, net margin 17%, debtor days 30
+Health & Beauty: gross margin 50%, net margin 11.5%, debtor days 21, stock days 30
+Manufacturing: gross margin 32.5%, net margin 7%, debtor days 45, stock days 60
+Transport & Logistics: gross margin 20%, net margin 5%, debtor days 30
+Education/Training: gross margin 52.5%, net margin 15%, debtor days 30
+Financial Services: gross margin 70%, net margin 27.5%, debtor days 21
+
+FINANCIAL HEALTH THRESHOLDS:
+- Net margin: <0% critical, 0-5% poor, 5-10% acceptable, >10% healthy
+- Gross margin: <15% critical, 15-20% low, 20-35% moderate, >35% strong
+- Cash runway: <1 month danger, 1-3 months tight, >3 months acceptable
+- Working capital ratio: <1.0x danger, 1.0-1.5x tight, >1.5x healthy
+- Debt/revenue: <3x manageable, 3-6x monitor, >6x high risk
+- Debtor days: target varies by sector (see benchmarks above)
+
+RESPONSE RULES:
+1. Base analysis ONLY on provided numbers. Do not invent figures.
+2. Keep responses concise — maximum 3 sentences per section unless more is essential.
+3. Always recommend consulting a qualified accountant or tax adviser for tax-specific decisions.
+4. Flag if data seems inconsistent (e.g. costs exceed revenue by large margin).
+5. Use British English. Use £ symbol for currency.
+6. Return ONLY valid JSON as specified. No markdown, no preamble."""
+
+    # Inserting a system with caching
+    payload['system'] = [
+        {
+            "type": "text",
+            "text": SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"}
+        }
+    ]
+
+    # Enable the caching beta feature
     try:
         resp = requests.post(
             'https://api.anthropic.com/v1/messages',
@@ -104,6 +157,7 @@ def proxy():
                 'Content-Type':      'application/json',
                 'x-api-key':         ANTHROPIC_API_KEY,
                 'anthropic-version': '2023-06-01',
+                'anthropic-beta':    'prompt-caching-2024-07-31',
             },
             json=payload,
             timeout=30,

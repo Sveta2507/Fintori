@@ -738,16 +738,14 @@ function askWhy(uid, metricName, ctxStr) {
 }
 
 function buildMetricPrompt(metricName, ctx) {
-  return `You are a concise UK business financial analyst. A UK small business owner is viewing their financial dashboard.
+  return `Metric: ${metricName}
+Value: ${ctx.value}
+Status: ${ctx.status === 'good' ? 'healthy' : ctx.status === 'moderate' ? 'needs attention' : 'critical'}
+Sector: ${ctx.sector || 'UK SME'}
+Data: ${JSON.stringify(ctx)}
 
-Metric: ${metricName}
-Current value: ${ctx.value}
-Status: ${ctx.status==='good'?'healthy':ctx.status==='moderate'?'needs attention':'critical'}
-Business sector: ${ctx.sector||'UK SME'}
-Financial data: ${JSON.stringify(ctx)}
-
-Respond in this EXACT JSON format only, no markdown, no extra text:
-{"what":"One sentence explaining what this metric actually measures in plain English (max 20 words)","why":"2-3 sentences explaining WHY this specific number occurred, based on the actual data. Reference specific figures.","action":"2-3 concrete specific actions this owner should take RIGHT NOW. Be specific with numbers and timelines."}`;
+Reply in this EXACT JSON only:
+{"what":"One sentence: what does this metric measure (max 18 words)","why":"2-3 sentences: why did THIS specific number occur, reference actual figures","action":"2-3 specific actions with numbers and deadlines"}`;
 }
 
 function getBackendBaseUrl() {
@@ -813,21 +811,19 @@ function renderMetricAI(el, rawText) {
 }
 
 async function loadVerdictAI(d) {
-  const prompt = `You are a sharp UK business financial analyst giving a top-level verdict on an SME.
-
-Sector: ${d.bench.label}
+  const prompt = `Sector: ${d.bench.label}
 Avg monthly revenue: £${Math.round(d.avgRev)}
 Net margin: ${(d.netMgn*100).toFixed(1)}% (sector avg: ${(d.bench.net*100).toFixed(1)}%)
 Gross margin: ${(d.grossMgn*100).toFixed(1)}% (sector avg: ${(d.bench.gross*100).toFixed(1)}%)
 EBITDA/month: £${Math.round(d.ebitdaM)}
-Cash runway: ${d.avgRev>0?d.runway.toFixed(1)+' months':'unknown'}
-Working capital ratio: ${d.wcr!==null?d.wcr.toFixed(2)+'x':'N/A'}
-Debt/Revenue: ${d.avgRev>0?d.debtRatio.toFixed(1)+'x':'N/A'}
+Cash runway: ${d.runway !== null ? d.runway.toFixed(1)+' months' : 'unknown'}
+Working capital: ${d.wcr !== null ? d.wcr.toFixed(2)+'x' : 'N/A'}
+Debt/Revenue: ${d.avgRev > 0 ? d.debtRatio.toFixed(1)+'x' : 'N/A'}
 Revenue trend: £${Math.round(d.r1)} → £${Math.round(d.r2)} → £${Math.round(d.r3)}
 Top costs: ${d.costMap.slice(0,3).map(c=>c.n+' £'+Math.round(c.a)+'/mo').join(', ')||'N/A'}
 
-Respond in this EXACT JSON format only, no markdown:
-{"problem":"The single biggest financial problem. One sentence, reference actual numbers.","opportunity":"The single biggest opportunity available now. One sentence, specific and actionable.","steps":["Step 1: specific action with number or deadline","Step 2: specific action","Step 3: specific action"]}`;
+Reply in this EXACT JSON only:
+{"problem":"Biggest financial problem, one sentence with specific numbers","opportunity":"Biggest opportunity available now, one sentence, specific","steps":["Step 1: action with number or deadline","Step 2: specific action","Step 3: specific action"]}`;
 
   try {
     const text = await callClaudeAPI(prompt);
