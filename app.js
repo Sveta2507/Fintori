@@ -775,7 +775,7 @@ async function callClaudeAPI(prompt) {
       'X-Proxy-Token': window.FINTORI_TOKEN || ''
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1000,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -811,20 +811,14 @@ function renderMetricAI(el, rawText) {
 }
 
 async function loadVerdictAI(d) {
-  const prompt = `Sector: ${d.bench.label}
-Avg monthly revenue: £${Math.round(d.avgRev)}
-Net margin: ${(d.netMgn*100).toFixed(1)}% (sector avg: ${(d.bench.net*100).toFixed(1)}%)
-Gross margin: ${(d.grossMgn*100).toFixed(1)}% (sector avg: ${(d.bench.gross*100).toFixed(1)}%)
-EBITDA/month: £${Math.round(d.ebitdaM)}
-Cash runway: ${d.runway !== null ? d.runway.toFixed(1)+' months' : 'unknown'}
-Working capital: ${d.wcr !== null ? d.wcr.toFixed(2)+'x' : 'N/A'}
-Debt/Revenue: ${d.avgRev > 0 ? d.debtRatio.toFixed(1)+'x' : 'N/A'}
-Revenue trend: £${Math.round(d.r1)} → £${Math.round(d.r2)} → £${Math.round(d.r3)}
-Top costs: ${d.costMap.slice(0,3).map(c=>c.n+' £'+Math.round(c.a)+'/mo').join(', ')||'N/A'}
+  const prompt = `Sector:${d.bench.label}|Rev:£${Math.round(d.avgRev)}/mo|NetMgn:${(d.netMgn*100).toFixed(1)}%(avg:${(d.bench.net*100).toFixed(1)}%)|GrossMgn:${(d.grossMgn*100).toFixed(1)}%(avg:${(d.bench.gross*100).toFixed(1)}%)|EBITDA:£${Math.round(d.ebitdaM)}/mo|Runway:${d.runway!==null?d.runway.toFixed(1)+'mo':'?'}|WC:${d.wcr!==null?d.wcr.toFixed(2)+'x':'?'}|Debt/Rev:${d.avgRev>0?d.debtRatio.toFixed(1)+'x':'?'}|Trend:£${Math.round(d.r1)}→£${Math.round(d.r2)}→£${Math.round(d.r3)}|Costs:${d.costMap.slice(0,3).map(c=>c.n+' £'+Math.round(c.a)).join(',')||'?'}
 
-Reply in this EXACT JSON only:
-{"problem":"Biggest financial problem, one sentence with specific numbers","opportunity":"Biggest opportunity available now, one sentence, specific","steps":["Step 1: action with number or deadline","Step 2: specific action","Step 3: specific action"]}`;
+Reply ONLY in this JSON:
+{"problem":"1 sentence, specific numbers","opportunity":"1 sentence, specific","steps":["Step 1","Step 2","Step 3"]}`;
 
+// $0.00426
+// JSON only, max 20 words per field:
+// {"problem":"","opportunity":"","steps":["","",""]}`;
   try {
     const text = await callClaudeAPI(prompt);
     const clean = text.replace(/```json|```/g,'').trim();
