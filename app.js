@@ -50,6 +50,8 @@ function tip(id){
 
 const RESULTS_STORAGE_KEY='fintori_results_html';
 const FORM_STORAGE_KEY='fintori_form_state';
+const AI_REPORT_KEY='fintori_ai_report';
+const VERDICT_DATA_KEY='fintori_verdict_data';
 
 function saveResultsSnapshot(){
   const results=document.getElementById('results');
@@ -62,6 +64,38 @@ function restoreResultsSnapshot(){
   const saved=localStorage.getItem(RESULTS_STORAGE_KEY);
   if(!results || !saved) return false;
   results.innerHTML=saved;
+  // Restore AI report if it was generated before the reload
+  try {
+    const aiRaw = localStorage.getItem(AI_REPORT_KEY);
+    if(aiRaw){
+      const j = JSON.parse(aiRaw);
+      const content  = document.getElementById('verdictAIContent');
+      const trigger  = document.getElementById('verdictAITrigger');
+      const loading  = document.getElementById('verdictAILoading');
+      const vProblem = document.getElementById('vai_problem');
+      const vOpp     = document.getElementById('vai_opportunity');
+      const vSteps   = document.getElementById('vai_steps');
+      if(vProblem) vProblem.innerHTML =
+        `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${j.problem}</div>`;
+      if(vOpp) vOpp.innerHTML =
+        `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${j.opportunity}</div>`;
+      if(vSteps) vSteps.innerHTML =
+        `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>`;
+      if(loading) loading.style.display = 'none';
+      if(trigger){ trigger.classList.remove('is-busy'); trigger.classList.add('is-hidden'); }
+      if(content){
+        content.classList.add('ready');
+        content.style.maxHeight = 'none';
+        // Re-sync height after layout is ready
+        requestAnimationFrame(() => syncVerdictAIHeight());
+      }
+    }
+  } catch(e){}
+  // Restore calc data so AI button works
+  try {
+    const vdRaw = localStorage.getItem(VERDICT_DATA_KEY);
+    if(vdRaw) window.__fintoriVerdictData = JSON.parse(vdRaw);
+  } catch(e){}
   return true;
 }
 
@@ -616,9 +650,25 @@ function render(){
   syncBenchFillHeight();
   setTimeout(syncBenchFillHeight, 120);
   saveResultsSnapshot();
+  // Clear stale AI report — a new calc invalidates the previous one
+  localStorage.removeItem(AI_REPORT_KEY);
+  // Mark step 4 as unlocked and update URL so reload lands on results
+  unlockedStep = Math.max(unlockedStep, 4);
+  syncNavLockState();
+  setStepUrl(4);
+  currentStep = 4;
+  document.getElementById('sb4').classList.add('active');
+  [1,2,3].forEach(i => {
+    document.getElementById('sb'+i)?.classList.remove('active');
+    document.getElementById('sb'+i)?.classList.add('done');
+    document.getElementById('s'+i)?.classList.remove('active');
+  });
+  document.getElementById('prog').style.width = '100%';
   window.scrollTo({top:0,behavior:'smooth'});
 
   window.__fintoriVerdictData = d;
+  // Persist calc data so AI button works after reload
+  try { localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify(d)); } catch(e){}
   resetVerdictAI();
 }
 
@@ -688,6 +738,8 @@ function startOver(){
   results.classList.remove('is-open');
   localStorage.removeItem(RESULTS_STORAGE_KEY);
   localStorage.removeItem(FORM_STORAGE_KEY);
+  localStorage.removeItem(AI_REPORT_KEY);
+  localStorage.removeItem(VERDICT_DATA_KEY);
   window.__fintoriVerdictData = null;
   unlockedStep=1;
   syncNavLockState();
@@ -738,16 +790,14 @@ function askWhy(uid, metricName, ctxStr) {
 }
 
 function buildMetricPrompt(metricName, ctx) {
-  return `You are a concise UK business financial analyst. A UK small business owner is viewing their financial dashboard.
+  return `Metric: ${metricName}
+Value: ${ctx.value}
+Status: ${ctx.status === 'good' ? 'healthy' : ctx.status === 'moderate' ? 'needs attention' : 'critical'}
+Sector: ${ctx.sector || 'UK SME'}
+Data: ${JSON.stringify(ctx)}
 
-Metric: ${metricName}
-Current value: ${ctx.value}
-Status: ${ctx.status==='good'?'healthy':ctx.status==='moderate'?'needs attention':'critical'}
-Business sector: ${ctx.sector||'UK SME'}
-Financial data: ${JSON.stringify(ctx)}
-
-Respond in this EXACT JSON format only, no markdown, no extra text:
-{"what":"One sentence explaining what this metric actually measures in plain English (max 20 words)","why":"2-3 sentences explaining WHY this specific number occurred, based on the actual data. Reference specific figures.","action":"2-3 concrete specific actions this owner should take RIGHT NOW. Be specific with numbers and timelines."}`;
+Reply in this EXACT JSON only:
+{"what":"One sentence: what does this metric measure (max 18 words)","why":"2-3 sentences: why did THIS specific number occur, reference actual figures","action":"2-3 specific actions with numbers and deadlines"}`;
 }
 
 function getBackendBaseUrl() {
@@ -777,7 +827,7 @@ async function callClaudeAPI(prompt) {
       'X-Proxy-Token': window.FINTORI_TOKEN || ''
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1000,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -813,22 +863,14 @@ function renderMetricAI(el, rawText) {
 }
 
 async function loadVerdictAI(d) {
-  const prompt = `You are a sharp UK business financial analyst giving a top-level verdict on an SME.
+  const prompt = `Sector:${d.bench.label}|Rev:£${Math.round(d.avgRev)}/mo|NetMgn:${(d.netMgn*100).toFixed(1)}%(avg:${(d.bench.net*100).toFixed(1)}%)|GrossMgn:${(d.grossMgn*100).toFixed(1)}%(avg:${(d.bench.gross*100).toFixed(1)}%)|EBITDA:£${Math.round(d.ebitdaM)}/mo|Runway:${d.runway!==null?d.runway.toFixed(1)+'mo':'?'}|WC:${d.wcr!==null?d.wcr.toFixed(2)+'x':'?'}|Debt/Rev:${d.avgRev>0?d.debtRatio.toFixed(1)+'x':'?'}|Trend:£${Math.round(d.r1)}→£${Math.round(d.r2)}→£${Math.round(d.r3)}|Costs:${d.costMap.slice(0,3).map(c=>c.n+' £'+Math.round(c.a)).join(',')||'?'}
 
-Sector: ${d.bench.label}
-Avg monthly revenue: £${Math.round(d.avgRev)}
-Net margin: ${(d.netMgn*100).toFixed(1)}% (sector avg: ${(d.bench.net*100).toFixed(1)}%)
-Gross margin: ${(d.grossMgn*100).toFixed(1)}% (sector avg: ${(d.bench.gross*100).toFixed(1)}%)
-EBITDA/month: £${Math.round(d.ebitdaM)}
-Cash runway: ${d.avgRev>0?d.runway.toFixed(1)+' months':'unknown'}
-Working capital ratio: ${d.wcr!==null?d.wcr.toFixed(2)+'x':'N/A'}
-Debt/Revenue: ${d.avgRev>0?d.debtRatio.toFixed(1)+'x':'N/A'}
-Revenue trend: £${Math.round(d.r1)} → £${Math.round(d.r2)} → £${Math.round(d.r3)}
-Top costs: ${d.costMap.slice(0,3).map(c=>c.n+' £'+Math.round(c.a)+'/mo').join(', ')||'N/A'}
+Reply ONLY in this JSON:
+{"problem":"1 sentence, specific numbers","opportunity":"1 sentence, specific","steps":["Step 1","Step 2","Step 3"]}`;
 
-Respond in this EXACT JSON format only, no markdown:
-{"problem":"The single biggest financial problem. One sentence, reference actual numbers.","opportunity":"The single biggest opportunity available now. One sentence, specific and actionable.","steps":["Step 1: specific action with number or deadline","Step 2: specific action","Step 3: specific action"]}`;
-
+// $0.00426
+// JSON only, max 20 words per field:
+// {"problem":"","opportunity":"","steps":["","",""]}`;
   try {
     const text = await callClaudeAPI(prompt);
     const clean = text.replace(/```json|```/g,'').trim();
@@ -848,6 +890,10 @@ Respond in this EXACT JSON format only, no markdown:
     }
     content.classList.add('ready');
     content.style.maxHeight = '0px';
+    // Persist AI report so it survives page reload
+    try {
+      localStorage.setItem(AI_REPORT_KEY, JSON.stringify(j));
+    } catch(e){}
     requestAnimationFrame(() => {
       syncVerdictAIHeight();
       setTimeout(() => {
@@ -1223,7 +1269,16 @@ function buildMobilePdfData(){
     actions: getAllText('#acts .act-item'),
     vat: document.getElementById('vatWarn')?.style.display !== 'none' ? getText('#vatWarn') : '',
     checklist: getAllText('#urgentCl .ck-item'),
-    disclaimer: getText('.disclaimer')
+    disclaimer: getText('.disclaimer'),
+    aiReport: (() => {
+      const content = document.getElementById('verdictAIContent');
+      if (!content || !content.classList.contains('ready')) return null;
+      return {
+        problem: sanitizeExportText(document.getElementById('vai_problem')?.querySelector('.verdict-ai-body')?.textContent || ''),
+        opportunity: sanitizeExportText(document.getElementById('vai_opportunity')?.querySelector('.verdict-ai-body')?.textContent || ''),
+        steps: [...document.querySelectorAll('#vai_steps .verdict-ai-steps li span')].map(el => sanitizeExportText(el.textContent)).filter(Boolean)
+      };
+    })()
   };
 }
 
@@ -1416,6 +1471,42 @@ function buildMobilePdfHtml(report){
         color: #64748b;
         padding: 4px 2px 0;
       }
+      .pdf-ai-head{
+        background: linear-gradient(135deg, #1a1040 0%, #2d1b69 100%);
+        color: #ffffff;
+        border-bottom: none;
+      }
+      .pdf-ai-block{
+        margin-bottom: 16px;
+      }
+      .pdf-ai-block:last-child{
+        margin-bottom: 0;
+      }
+      .pdf-ai-label{
+        font-size: 11px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #5b21b6;
+        margin-bottom: 6px;
+      }
+      .pdf-ai-body{
+        font-size: 14px;
+        line-height: 1.7;
+        color: #1e1b3a;
+      }
+      .pdf-ai-steps{
+        margin: 4px 0 0 18px;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+      }
+      .pdf-ai-steps li{
+        font-size: 14px;
+        line-height: 1.65;
+        color: #1e1b3a;
+        padding-left: 4px;
+      }
     </style>
     <div class="pdf-export">
       <div class="pdf-shell">
@@ -1476,6 +1567,31 @@ function buildMobilePdfHtml(report){
           <div class="pdf-card-head"><h2 class="pdf-card-title">Action Checklist</h2></div>
           <div class="pdf-card-body"><ul class="pdf-list">${list(report.checklist)}</ul></div>
         </section>
+
+        ${report.aiReport ? `
+        <section class="pdf-card pdf-ai-card">
+          <div class="pdf-card-head pdf-ai-head">
+            <h2 class="pdf-card-title">&#10024; AI Report</h2>
+          </div>
+          <div class="pdf-card-body">
+            ${report.aiReport.problem ? `
+            <div class="pdf-ai-block">
+              <div class="pdf-ai-label">Main Problem</div>
+              <div class="pdf-ai-body">${report.aiReport.problem}</div>
+            </div>` : ''}
+            ${report.aiReport.opportunity ? `
+            <div class="pdf-ai-block">
+              <div class="pdf-ai-label">Main Opportunity</div>
+              <div class="pdf-ai-body">${report.aiReport.opportunity}</div>
+            </div>` : ''}
+            ${report.aiReport.steps && report.aiReport.steps.length ? `
+            <div class="pdf-ai-block">
+              <div class="pdf-ai-label">Next Steps</div>
+              <ol class="pdf-ai-steps">${report.aiReport.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+            </div>` : ''}
+          </div>
+        </section>
+        ` : ''}
 
         <div class="pdf-note">${report.disclaimer}</div>
       </div>
@@ -1640,10 +1756,10 @@ async function exportReport(){
 
     const { jsPDF } = window.jspdf;
 
-    // Рендерим HTML в скрытый div прямо на странице
     const report = buildMobilePdfData();
-    const html = buildMobilePdfHtml(report);
+    const html   = buildMobilePdfHtml(report);
 
+    // Mount hidden container
     const container = document.createElement('div');
     container.style.cssText = [
       'position:fixed',
@@ -1657,46 +1773,98 @@ async function exportReport(){
     container.innerHTML = html;
     document.body.appendChild(container);
 
-    // Ждём рендера и шрифтов
     await new Promise(resolve => window.setTimeout(resolve, 600));
     await document.fonts.ready;
 
-    const target = container.querySelector('.pdf-export') || container; 
-    const totalHeight = target.scrollHeight || container.scrollHeight;
+    const doc   = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageW = doc.internal.pageSize.getWidth();   // 210 mm
+    const pageH = doc.internal.pageSize.getHeight();  // 297 mm
+    const PAD   = 8; // mm margin on each side
 
+    // px-per-mm: container is 800px wide, usable width = pageW - 2*PAD mm
+    const usableW_mm  = pageW - PAD * 2;
+    const PX_PER_MM   = 800 / usableW_mm;
+    const usableH_mm  = pageH - PAD * 2;
+    const usableH_px  = usableH_mm * PX_PER_MM; // at scale:1; canvas is scale:2
 
-    const canvas = await html2canvas(target, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#f5f7fb',
-      width: 800,
-      height: totalHeight,
-      windowWidth: 800,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-    });
+    // Render a single DOM node to canvas
+    const renderNode = async (node) => {
+      const w = node.offsetWidth  || 800;
+      const h = node.scrollHeight || node.offsetHeight || 1;
+      return html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#f5f7fb',
+        width: w,
+        height: h,
+        windowWidth: 800,
+        scrollX: 0,
+        scrollY: 0,
+        logging: false,
+      });
+    };
+
+    // Iterate over direct children of .pdf-shell (each is one visual block)
+    const shell    = container.querySelector('.pdf-shell') || container;
+    const sections = [...shell.children];
+    const GAP_MM   = 4; // vertical gap between blocks in mm
+
+    // Fill page background colour so blocks blend seamlessly
+    const fillPageBg = () => {
+      doc.setFillColor(245, 247, 251); // #f5f7fb
+      doc.rect(0, 0, pageW, pageH, 'F');
+    };
+    fillPageBg();
+
+    let curY = PAD; // current Y cursor in mm on the current page
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const canvas  = await renderNode(section);
+      if (canvas.width === 0 || canvas.height === 0) continue;
+
+      // canvas is rendered at scale:2, so logical px = canvas.px / 2
+      const blockH_mm = (canvas.height / 2) / PX_PER_MM;
+      const imgW_mm   = usableW_mm;
+      const imgH_mm   = (canvas.height / canvas.width) * imgW_mm; // aspect-correct
+
+      if (blockH_mm <= usableH_mm) {
+        // Block fits on one page — move to next page if it won't fit here
+        if (curY + blockH_mm > pageH - PAD && curY > PAD) {
+          doc.addPage();
+          fillPageBg();
+          curY = PAD;
+        }
+        const imgData = canvas.toDataURL('image/png');
+        doc.addImage(imgData, 'PNG', PAD, curY, imgW_mm, imgH_mm);
+        curY += imgH_mm + GAP_MM;
+      } else {
+        // Oversized block: slice across pages
+        const sliceH_canvasPx = usableH_px * 2; // *2 for scale:2
+        const totalSlices = Math.ceil(canvas.height / sliceH_canvasPx);
+        for (let s = 0; s < totalSlices; s++) {
+          if (s > 0) { doc.addPage(); fillPageBg(); curY = PAD; }
+          else if (curY > PAD) { doc.addPage(); fillPageBg(); curY = PAD; }
+          const sliceCanvas = document.createElement('canvas');
+          const sliceActual = Math.min(sliceH_canvasPx, canvas.height - s * sliceH_canvasPx);
+          sliceCanvas.width  = canvas.width;
+          sliceCanvas.height = sliceActual;
+          sliceCanvas.getContext('2d').drawImage(
+            canvas,
+            0, s * sliceH_canvasPx, canvas.width, sliceActual,
+            0, 0,                   canvas.width, sliceActual
+          );
+          const sliceData  = sliceCanvas.toDataURL('image/png');
+          const sliceH_mm  = (sliceActual / 2) / PX_PER_MM;
+          const sliceImgH  = (sliceCanvas.height / sliceCanvas.width) * imgW_mm;
+          doc.addImage(sliceData, 'PNG', PAD, curY, imgW_mm, sliceImgH);
+          curY += sliceImgH + GAP_MM;
+        }
+      }
+    }
 
     document.body.removeChild(container);
-
-    if(canvas.width === 0 || canvas.height === 0){
-      throw new Error('Canvas is empty — nothing to render.');
-    }
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    const pageCount = Math.ceil(imgH / pageH);
-
-    for(let i = 0; i < pageCount; i++){
-      if(i > 0) doc.addPage();
-      doc.addImage(imgData, 'JPEG', 0, -(i * pageH), imgW, imgH);
-    }
-
     doc.save(`fintori-report-${stamp}.pdf`);
     setExportButtonState('success');
 
@@ -1728,4 +1896,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 window.addEventListener('resize', syncBenchFillHeight);
 window.addEventListener('resize', syncVerdictAIHeight);
-goTo(Math.min(Math.max(getStepFromUrl(), 1), unlockedStep));
+const _urlStep = getStepFromUrl();
+// If the user reloaded on the results page (step=4) and results exist, restore them
+if(_urlStep === 4 && localStorage.getItem(RESULTS_STORAGE_KEY)){
+  unlockedStep = Math.max(unlockedStep, 4);
+  syncNavLockState();
+}
+goTo(Math.min(Math.max(_urlStep, 1), unlockedStep));
