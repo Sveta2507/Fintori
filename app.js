@@ -50,6 +50,8 @@ function tip(id){
 
 const RESULTS_STORAGE_KEY='fintori_results_html';
 const FORM_STORAGE_KEY='fintori_form_state';
+const AI_REPORT_KEY='fintori_ai_report';
+const VERDICT_DATA_KEY='fintori_verdict_data';
 
 function saveResultsSnapshot(){
   const results=document.getElementById('results');
@@ -62,6 +64,38 @@ function restoreResultsSnapshot(){
   const saved=localStorage.getItem(RESULTS_STORAGE_KEY);
   if(!results || !saved) return false;
   results.innerHTML=saved;
+  // Restore AI report if it was generated before the reload
+  try {
+    const aiRaw = localStorage.getItem(AI_REPORT_KEY);
+    if(aiRaw){
+      const j = JSON.parse(aiRaw);
+      const content  = document.getElementById('verdictAIContent');
+      const trigger  = document.getElementById('verdictAITrigger');
+      const loading  = document.getElementById('verdictAILoading');
+      const vProblem = document.getElementById('vai_problem');
+      const vOpp     = document.getElementById('vai_opportunity');
+      const vSteps   = document.getElementById('vai_steps');
+      if(vProblem) vProblem.innerHTML =
+        `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${j.problem}</div>`;
+      if(vOpp) vOpp.innerHTML =
+        `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${j.opportunity}</div>`;
+      if(vSteps) vSteps.innerHTML =
+        `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>`;
+      if(loading) loading.style.display = 'none';
+      if(trigger){ trigger.classList.remove('is-busy'); trigger.classList.add('is-hidden'); }
+      if(content){
+        content.classList.add('ready');
+        content.style.maxHeight = 'none';
+        // Re-sync height after layout is ready
+        requestAnimationFrame(() => syncVerdictAIHeight());
+      }
+    }
+  } catch(e){}
+  // Restore calc data so AI button works
+  try {
+    const vdRaw = localStorage.getItem(VERDICT_DATA_KEY);
+    if(vdRaw) window.__fintoriVerdictData = JSON.parse(vdRaw);
+  } catch(e){}
   return true;
 }
 
@@ -616,9 +650,25 @@ function render(){
   syncBenchFillHeight();
   setTimeout(syncBenchFillHeight, 120);
   saveResultsSnapshot();
+  // Clear stale AI report — a new calc invalidates the previous one
+  localStorage.removeItem(AI_REPORT_KEY);
+  // Mark step 4 as unlocked and update URL so reload lands on results
+  unlockedStep = Math.max(unlockedStep, 4);
+  syncNavLockState();
+  setStepUrl(4);
+  currentStep = 4;
+  document.getElementById('sb4').classList.add('active');
+  [1,2,3].forEach(i => {
+    document.getElementById('sb'+i)?.classList.remove('active');
+    document.getElementById('sb'+i)?.classList.add('done');
+    document.getElementById('s'+i)?.classList.remove('active');
+  });
+  document.getElementById('prog').style.width = '100%';
   window.scrollTo({top:0,behavior:'smooth'});
 
   window.__fintoriVerdictData = d;
+  // Persist calc data so AI button works after reload
+  try { localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify(d)); } catch(e){}
   resetVerdictAI();
 }
 
@@ -688,6 +738,8 @@ function startOver(){
   results.classList.remove('is-open');
   localStorage.removeItem(RESULTS_STORAGE_KEY);
   localStorage.removeItem(FORM_STORAGE_KEY);
+  localStorage.removeItem(AI_REPORT_KEY);
+  localStorage.removeItem(VERDICT_DATA_KEY);
   window.__fintoriVerdictData = null;
   unlockedStep=1;
   syncNavLockState();
@@ -838,6 +890,10 @@ Reply ONLY in this JSON:
     }
     content.classList.add('ready');
     content.style.maxHeight = '0px';
+    // Persist AI report so it survives page reload
+    try {
+      localStorage.setItem(AI_REPORT_KEY, JSON.stringify(j));
+    } catch(e){}
     requestAnimationFrame(() => {
       syncVerdictAIHeight();
       setTimeout(() => {
@@ -1840,4 +1896,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 window.addEventListener('resize', syncBenchFillHeight);
 window.addEventListener('resize', syncVerdictAIHeight);
-goTo(Math.min(Math.max(getStepFromUrl(), 1), unlockedStep));
+const _urlStep = getStepFromUrl();
+// If the user reloaded on the results page (step=4) and results exist, restore them
+if(_urlStep === 4 && localStorage.getItem(RESULTS_STORAGE_KEY)){
+  unlockedStep = Math.max(unlockedStep, 4);
+  syncNavLockState();
+}
+goTo(Math.min(Math.max(_urlStep, 1), unlockedStep));
