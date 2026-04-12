@@ -64,10 +64,18 @@ function restoreResultsSnapshot(){
   const saved=localStorage.getItem(RESULTS_STORAGE_KEY);
   if(!results || !saved) return false;
   results.innerHTML=saved;
-  // Restore AI report if it was generated before the reload
+  // Restore AI report only if its fingerprint matches the saved calc fingerprint.
+  // Prevents a stale AI report from a previous calculation appearing alongside
+  // results that belong to different numbers.
   try {
-    const aiRaw = localStorage.getItem(AI_REPORT_KEY);
-    if(aiRaw){
+    const aiRaw   = localStorage.getItem(AI_REPORT_KEY);
+    const calcFp  = localStorage.getItem('fintori_calc_fp') || null;
+    if(aiRaw && calcFp){
+      const aiParsed = JSON.parse(aiRaw);
+      const aiFp     = aiParsed._fp || null;
+      if(aiFp !== calcFp) throw new Error('fingerprint mismatch — skip AI restore');
+    }
+    if(aiRaw && calcFp){
       const j = JSON.parse(aiRaw);
       const content  = document.getElementById('verdictAIContent');
       const trigger  = document.getElementById('verdictAITrigger');
@@ -76,11 +84,11 @@ function restoreResultsSnapshot(){
       const vOpp     = document.getElementById('vai_opportunity');
       const vSteps   = document.getElementById('vai_steps');
       if(vProblem) vProblem.innerHTML =
-        `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${j.problem}</div>`;
+        `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${sanitize(j.problem)}</div>`;
       if(vOpp) vOpp.innerHTML =
-        `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${j.opportunity}</div>`;
+        `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${sanitize(j.opportunity)}</div>`;
       if(vSteps) vSteps.innerHTML =
-        `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>`;
+        `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${sanitize(s)}</span></li>`).join('')}</ol>`;
       if(loading) loading.style.display = 'none';
       if(trigger){ trigger.classList.remove('is-busy'); trigger.classList.add('is-hidden'); }
       if(content){
@@ -649,9 +657,15 @@ function render(){
   });
   syncBenchFillHeight();
   setTimeout(syncBenchFillHeight, 120);
-  saveResultsSnapshot();
-  // Clear stale AI report — a new calc invalidates the previous one
+  // Clear stale AI report — a new calc invalidates the previous one.
+  // Must happen BEFORE saveResultsSnapshot() so the AI section is empty
+  // in the saved HTML. Otherwise a reload restores the old AI content
+  // even though the numbers below belong to a different calculation.
   localStorage.removeItem(AI_REPORT_KEY);
+  localStorage.removeItem(VERDICT_DATA_KEY);
+  resetVerdictAI();
+  // Snapshot only after the AI panel has been reset to its blank state.
+  saveResultsSnapshot();
   // Mark step 4 as unlocked and update URL so reload lands on results
   unlockedStep = Math.max(unlockedStep, 4);
   syncNavLockState();
@@ -667,9 +681,14 @@ function render(){
   window.scrollTo({top:0,behavior:'smooth'});
 
   window.__fintoriVerdictData = d;
-  // Persist calc data so AI button works after reload
-  try { localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify(d)); } catch(e){}
-  resetVerdictAI();
+  // Persist calc data so AI button works after reload.
+  // Also store a fingerprint of the current calculation so that on restore
+  // we can detect if the AI report belongs to a different set of numbers.
+  try {
+    const fp = [Math.round(d.avgRev), Math.round(d.totProfit), Math.round(d.totalCostsM), d.sector].join('|');
+    localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify({ ...d, _fp: fp }));
+    localStorage.setItem('fintori_calc_fp', fp);
+  } catch(e){}
 }
 
 function syncBenchFillHeight() {
@@ -740,6 +759,7 @@ function startOver(){
   localStorage.removeItem(FORM_STORAGE_KEY);
   localStorage.removeItem(AI_REPORT_KEY);
   localStorage.removeItem(VERDICT_DATA_KEY);
+  localStorage.removeItem('fintori_calc_fp');
   window.__fintoriVerdictData = null;
   unlockedStep=1;
   syncNavLockState();
@@ -815,24 +835,54 @@ function backendUrl(path) {
   return `${getBackendBaseUrl()}/${String(path).replace(/^\/+/, '')}`;
 }
 
-// SECURITY: Never hard-code PROXY_TOKEN here.
-// The server must inject it at page-load time as:
-//   <script>window.FINTORI_TOKEN = "{{ proxy_token }}";</script>
-// If the variable is absent the proxy will return 401 — intentional.
+// SECURITY: Session token — fetched from the server on page load.
+// The static PROXY_TOKEN never reaches the browser.
+// The server issues a short-lived (1 h) token that expires automatically.
+let _sessionToken = null;
+
+async function _ensureSessionToken() {
+  if (_sessionToken) return _sessionToken;
+  // No SSR: call /session-token directly from the browser.
+  // Security relies on CORS (allowed origins only) + server-side rate limiting.
+  const resp = await fetch(backendUrl('session-token'), {
+    method: 'GET',
+    cache: 'no-store',
+  });
+  if (!resp.ok) throw new Error('Could not initialise session');
+  const data = await resp.json();
+  _sessionToken = data.token;
+  return _sessionToken;
+}
+
+// SECURITY: sanitize strips all HTML tags from AI response fields before
+// inserting them into the DOM, preventing XSS via a malicious/prompt-injected
+// AI response.
+function sanitize(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 async function callClaudeAPI(prompt) {
+  const token = await _ensureSessionToken();
+  // SECURITY: Only send 'messages'. Model, max_tokens, system prompt
+  // are set server-side and cannot be overridden by the client.
   const response = await fetch(backendUrl('proxy.py'), {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'X-Proxy-Token': window.FINTORI_TOKEN || ''
+      'Content-Type':   'application/json',
+      'X-Session-Token': token,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
   if (!response.ok) {
+    // If the session token expired, clear it so next call re-fetches
+    if (response.status === 401) { _sessionToken = null; }
     const err = await response.json().catch(()=>({}));
     throw new Error(err.error || 'API error ' + response.status);
   }
@@ -844,21 +894,22 @@ function renderMetricAI(el, rawText) {
   try {
     const clean = rawText.replace(/```json|```/g, '').trim();
     const j = JSON.parse(clean);
+    // SECURITY: sanitize() escapes all HTML before inserting AI-generated text.
     el.innerHTML = `
       <div class="ai-section">
         <div class="ai-section-ttl"><i class="fas fa-thumbtack"></i> What it means</div>
-        <div class="ai-section-body">${j.what}</div>
+        <div class="ai-section-body">${sanitize(j.what)}</div>
       </div>
       <div class="ai-section">
         <div class="ai-section-ttl"><i class="fas fa-magnifying-glass"></i> Why this happened</div>
-        <div class="ai-section-body">${j.why}</div>
+        <div class="ai-section-body">${sanitize(j.why)}</div>
       </div>
       <div class="ai-section">
         <div class="ai-section-ttl"><i class="fas fa-bolt"></i> What to do</div>
-        <div class="ai-section-body">${j.action}</div>
+        <div class="ai-section-body">${sanitize(j.action)}</div>
       </div>`;
   } catch(e) {
-    el.innerHTML = `<div class="ai-section"><div class="ai-section-body" style="white-space:pre-wrap;font-size:12px">${rawText}</div></div>`;
+    el.innerHTML = `<div class="ai-section"><div class="ai-section-body" style="white-space:pre-wrap;font-size:12px">${sanitize(rawText)}</div></div>`;
   }
 }
 
@@ -876,12 +927,13 @@ Reply ONLY in this JSON:
     const clean = text.replace(/```json|```/g,'').trim();
     const j = JSON.parse(clean);
     const content = document.getElementById('verdictAIContent');
+    // SECURITY: sanitize() escapes AI-generated text before DOM insertion.
     document.getElementById('vai_problem').innerHTML =
-      `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${j.problem}</div>`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${sanitize(j.problem)}</div>`;
     document.getElementById('vai_opportunity').innerHTML =
-      `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${j.opportunity}</div>`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${sanitize(j.opportunity)}</div>`;
     document.getElementById('vai_steps').innerHTML =
-      `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>`;
+      `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${j.steps.map(s=>`<li><span>${sanitize(s)}</span></li>`).join('')}</ol>`;
     document.getElementById('verdictAILoading').style.display = 'none';
     const trigger = document.getElementById('verdictAITrigger');
     if(trigger){
@@ -890,9 +942,11 @@ Reply ONLY in this JSON:
     }
     content.classList.add('ready');
     content.style.maxHeight = '0px';
-    // Persist AI report so it survives page reload
+    // Persist AI report so it survives page reload.
+    // Also update fintori_calc_fp so the restore guard accepts it.
     try {
-      localStorage.setItem(AI_REPORT_KEY, JSON.stringify(j));
+      const currentFp = localStorage.getItem('fintori_calc_fp') || '';
+      localStorage.setItem(AI_REPORT_KEY, JSON.stringify({ ...j, _fp: currentFp }));
     } catch(e){}
     requestAnimationFrame(() => {
       syncVerdictAIHeight();
@@ -1245,7 +1299,49 @@ function buildWebsitePdfHtml(){
 
 function buildMobilePdfData(){
   const getText = (selector) => sanitizeExportText(document.querySelector(selector)?.textContent || '');
-  const getAllText = (selector) => [...document.querySelectorAll(selector)].map(el => sanitizeExportText(el.textContent)).filter(Boolean);
+
+  // ── Breakeven detail: rebuild from labelled child elements to preserve spacing.
+  // Using textContent on be_detail collapses <br> and adjacent <span>/<strong>
+  // into a single string with no whitespace between values.
+  const breakevenDetail = (() => {
+    const el = document.getElementById('be_detail');
+    if (!el) return '';
+    // Clone and replace <br> with newline sentinel before extracting text
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    // Replace icon elements with nothing (e.g. Font Awesome <i> tags)
+    clone.querySelectorAll('i').forEach(i => i.remove());
+    return clone.innerText || clone.textContent || '';
+  })();
+
+  // ── Costs: name and value live in sibling <span> elements inside .cost-hdr.
+  // textContent on the parent .cost-item joins them without a space.
+  const costs = [...document.querySelectorAll('#costs .cost-item')].map(item => {
+    const name = sanitizeExportText(item.querySelector('.cost-name')?.textContent || '');
+    const val  = sanitizeExportText(item.querySelector('.cost-val')?.textContent || '');
+    return (name && val) ? `${name}  ${val}` : (name || val);
+  }).filter(Boolean);
+
+  // ── Checklist: three static sections plus the dynamic urgentCl block.
+  // getAllText('#urgentCl .ck-item') only captured the dynamic "This Week" items.
+  const getChecklistSection = (titleEl, itemsSelector) => {
+    const title = sanitizeExportText(titleEl?.textContent || '');
+    const items = [...document.querySelectorAll(itemsSelector)]
+      .map(el => sanitizeExportText(el.querySelector('.ck-txt')?.textContent || el.textContent))
+      .filter(Boolean);
+    return { title, items };
+  };
+  const clSecs = document.querySelectorAll('#resultChecklist .cl-sec');
+  const checklist = [];
+  clSecs.forEach(sec => {
+    const titleEl = sec.querySelector('.cl-ttl');
+    const items   = [...sec.querySelectorAll('.ck-item')]
+      .map(el => sanitizeExportText(el.querySelector('.ck-txt')?.textContent || el.textContent))
+      .filter(Boolean);
+    if (items.length) {
+      checklist.push({ title: sanitizeExportText(titleEl?.textContent || ''), items });
+    }
+  });
 
   return {
     title: getText('#vtitle') || 'Fintori Business Analysis',
@@ -1262,17 +1358,26 @@ function buildMobilePdfData(){
     breakevenTitle: 'Breakeven Analysis',
     breakevenValue: getText('#be_val'),
     breakevenSub: getText('#be_sub'),
-    breakevenDetail: getText('#be_detail'),
-    health: getAllText('#resultHealth .tl-item').map(t => t.replace(/\s+/g, ' ').trim()),
-    benchmarks: getAllText('#bench .bench-item').map(t => t.replace(/\s+/g, ' ').trim()),
-    costs: getAllText('#costs .cost-item').map(t => t.replace(/\s+/g, ' ').trim()),
-    actions: getAllText('#acts .act-item'),
+    breakevenDetail: sanitizeExportText(breakevenDetail),
+    health: [...document.querySelectorAll('#resultHealth .tl-item')].map(item => {
+      const metric = sanitizeExportText(item.querySelector('.tl-metric')?.textContent || '');
+      const value  = sanitizeExportText(item.querySelector('.tl-value')?.textContent || '');
+      const badge  = sanitizeExportText(item.querySelector('.tl-badge')?.textContent || '');
+      return [metric, value, badge].filter(Boolean).join('  ');
+    }).filter(Boolean),
+    benchmarks: [...document.querySelectorAll('#bench .bench-item')].map(item => {
+      return sanitizeExportText(item.querySelector('.bench-hdr')?.textContent || item.textContent);
+    }).filter(Boolean),
+    costs,
+    actions: [...document.querySelectorAll('#acts .act-item')].map(el =>
+      sanitizeExportText(el.querySelector('.act-text')?.textContent || el.textContent)
+    ).filter(Boolean),
     vat: document.getElementById('vatWarn')?.style.display !== 'none' ? getText('#vatWarn') : '',
-    checklist: getAllText('#urgentCl .ck-item'),
+    checklist,
     disclaimer: getText('.disclaimer'),
     aiReport: (() => {
-      const content = document.getElementById('verdictAIContent');
-      if (!content || !content.classList.contains('ready')) return null;
+      const aiContent = document.getElementById('verdictAIContent');
+      if (!aiContent || !aiContent.classList.contains('ready')) return null;
       return {
         problem: sanitizeExportText(document.getElementById('vai_problem')?.querySelector('.verdict-ai-body')?.textContent || ''),
         opportunity: sanitizeExportText(document.getElementById('vai_opportunity')?.querySelector('.verdict-ai-body')?.textContent || ''),
@@ -1471,6 +1576,22 @@ function buildMobilePdfHtml(report){
         color: #64748b;
         padding: 4px 2px 0;
       }
+      .pdf-cl-sec{
+        margin-bottom: 16px;
+      }
+      .pdf-cl-sec:last-child{
+        margin-bottom: 0;
+      }
+      .pdf-cl-ttl{
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #1d4ed8;
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #e5e7eb;
+      }
       .pdf-ai-head{
         background: linear-gradient(135deg, #1a1040 0%, #2d1b69 100%);
         color: #ffffff;
@@ -1530,7 +1651,7 @@ function buildMobilePdfHtml(report){
                 <div class="pdf-breakeven-value">${report.breakevenValue}</div>
                 <div class="pdf-breakeven-sub">${report.breakevenSub}</div>
               </div>
-              <div class="pdf-note">${report.breakevenDetail}</div>
+              <div class="pdf-note" style="white-space:pre-line">${report.breakevenDetail}</div>
             </div>
           </div>
         </section>
@@ -1565,7 +1686,14 @@ function buildMobilePdfHtml(report){
 
         <section class="pdf-card">
           <div class="pdf-card-head"><h2 class="pdf-card-title">Action Checklist</h2></div>
-          <div class="pdf-card-body"><ul class="pdf-list">${list(report.checklist)}</ul></div>
+          <div class="pdf-card-body">
+            ${(report.checklist || []).map(sec => `
+              <div class="pdf-cl-sec">
+                ${sec.title ? `<div class="pdf-cl-ttl">${sec.title}</div>` : ''}
+                <ul class="pdf-list">${(sec.items || []).map(item => `<li>${item}</li>`).join('')}</ul>
+              </div>
+            `).join('')}
+          </div>
         </section>
 
         ${report.aiReport ? `

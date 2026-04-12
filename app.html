@@ -502,6 +502,11 @@
     }
   }
 </script>
-<script>window.FINTORI_TOKEN = "fyntori-x7k2-mQ9p-2026";</script>
+<!--
+  SECURITY: No static token is stored in this file.
+  app.js fetches a short-lived session token from /session-token on the first
+  AI request. The token lives only in JS memory — never in localStorage or a cookie.
+  Access is gated by CORS (ALLOWED_ORIGINS in .env) and server-side rate limiting.
+-->
 </body>
 </html>
