@@ -1213,7 +1213,16 @@ function buildMobilePdfData(){
     actions: getAllText('#acts .act-item'),
     vat: document.getElementById('vatWarn')?.style.display !== 'none' ? getText('#vatWarn') : '',
     checklist: getAllText('#urgentCl .ck-item'),
-    disclaimer: getText('.disclaimer')
+    disclaimer: getText('.disclaimer'),
+    aiReport: (() => {
+      const content = document.getElementById('verdictAIContent');
+      if (!content || !content.classList.contains('ready')) return null;
+      return {
+        problem: sanitizeExportText(document.getElementById('vai_problem')?.querySelector('.verdict-ai-body')?.textContent || ''),
+        opportunity: sanitizeExportText(document.getElementById('vai_opportunity')?.querySelector('.verdict-ai-body')?.textContent || ''),
+        steps: [...document.querySelectorAll('#vai_steps .verdict-ai-steps li span')].map(el => sanitizeExportText(el.textContent)).filter(Boolean)
+      };
+    })()
   };
 }
 
@@ -1406,6 +1415,42 @@ function buildMobilePdfHtml(report){
         color: #64748b;
         padding: 4px 2px 0;
       }
+      .pdf-ai-head{
+        background: linear-gradient(135deg, #1a1040 0%, #2d1b69 100%);
+        color: #ffffff;
+        border-bottom: none;
+      }
+      .pdf-ai-block{
+        margin-bottom: 16px;
+      }
+      .pdf-ai-block:last-child{
+        margin-bottom: 0;
+      }
+      .pdf-ai-label{
+        font-size: 11px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #5b21b6;
+        margin-bottom: 6px;
+      }
+      .pdf-ai-body{
+        font-size: 14px;
+        line-height: 1.7;
+        color: #1e1b3a;
+      }
+      .pdf-ai-steps{
+        margin: 4px 0 0 18px;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+      }
+      .pdf-ai-steps li{
+        font-size: 14px;
+        line-height: 1.65;
+        color: #1e1b3a;
+        padding-left: 4px;
+      }
     </style>
     <div class="pdf-export">
       <div class="pdf-shell">
@@ -1466,6 +1511,31 @@ function buildMobilePdfHtml(report){
           <div class="pdf-card-head"><h2 class="pdf-card-title">Action Checklist</h2></div>
           <div class="pdf-card-body"><ul class="pdf-list">${list(report.checklist)}</ul></div>
         </section>
+
+        ${report.aiReport ? `
+        <section class="pdf-card pdf-ai-card">
+          <div class="pdf-card-head pdf-ai-head">
+            <h2 class="pdf-card-title">&#10024; AI Report</h2>
+          </div>
+          <div class="pdf-card-body">
+            ${report.aiReport.problem ? `
+            <div class="pdf-ai-block">
+              <div class="pdf-ai-label">Main Problem</div>
+              <div class="pdf-ai-body">${report.aiReport.problem}</div>
+            </div>` : ''}
+            ${report.aiReport.opportunity ? `
+            <div class="pdf-ai-block">
+              <div class="pdf-ai-label">Main Opportunity</div>
+              <div class="pdf-ai-body">${report.aiReport.opportunity}</div>
+            </div>` : ''}
+            ${report.aiReport.steps && report.aiReport.steps.length ? `
+            <div class="pdf-ai-block">
+              <div class="pdf-ai-label">Next Steps</div>
+              <ol class="pdf-ai-steps">${report.aiReport.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+            </div>` : ''}
+          </div>
+        </section>
+        ` : ''}
 
         <div class="pdf-note">${report.disclaimer}</div>
       </div>
@@ -1630,10 +1700,10 @@ async function exportReport(){
 
     const { jsPDF } = window.jspdf;
 
-    // Рендерим HTML в скрытый div прямо на странице
     const report = buildMobilePdfData();
-    const html = buildMobilePdfHtml(report);
+    const html   = buildMobilePdfHtml(report);
 
+    // Mount hidden container
     const container = document.createElement('div');
     container.style.cssText = [
       'position:fixed',
@@ -1647,46 +1717,98 @@ async function exportReport(){
     container.innerHTML = html;
     document.body.appendChild(container);
 
-    // Ждём рендера и шрифтов
     await new Promise(resolve => window.setTimeout(resolve, 600));
     await document.fonts.ready;
 
-    const target = container.querySelector('.pdf-export') || container; 
-    const totalHeight = target.scrollHeight || container.scrollHeight;
+    const doc   = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageW = doc.internal.pageSize.getWidth();   // 210 mm
+    const pageH = doc.internal.pageSize.getHeight();  // 297 mm
+    const PAD   = 8; // mm margin on each side
 
+    // px-per-mm: container is 800px wide, usable width = pageW - 2*PAD mm
+    const usableW_mm  = pageW - PAD * 2;
+    const PX_PER_MM   = 800 / usableW_mm;
+    const usableH_mm  = pageH - PAD * 2;
+    const usableH_px  = usableH_mm * PX_PER_MM; // at scale:1; canvas is scale:2
 
-    const canvas = await html2canvas(target, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#f5f7fb',
-      width: 800,
-      height: totalHeight,
-      windowWidth: 800,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-    });
+    // Render a single DOM node to canvas
+    const renderNode = async (node) => {
+      const w = node.offsetWidth  || 800;
+      const h = node.scrollHeight || node.offsetHeight || 1;
+      return html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#f5f7fb',
+        width: w,
+        height: h,
+        windowWidth: 800,
+        scrollX: 0,
+        scrollY: 0,
+        logging: false,
+      });
+    };
+
+    // Iterate over direct children of .pdf-shell (each is one visual block)
+    const shell    = container.querySelector('.pdf-shell') || container;
+    const sections = [...shell.children];
+    const GAP_MM   = 4; // vertical gap between blocks in mm
+
+    // Fill page background colour so blocks blend seamlessly
+    const fillPageBg = () => {
+      doc.setFillColor(245, 247, 251); // #f5f7fb
+      doc.rect(0, 0, pageW, pageH, 'F');
+    };
+    fillPageBg();
+
+    let curY = PAD; // current Y cursor in mm on the current page
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const canvas  = await renderNode(section);
+      if (canvas.width === 0 || canvas.height === 0) continue;
+
+      // canvas is rendered at scale:2, so logical px = canvas.px / 2
+      const blockH_mm = (canvas.height / 2) / PX_PER_MM;
+      const imgW_mm   = usableW_mm;
+      const imgH_mm   = (canvas.height / canvas.width) * imgW_mm; // aspect-correct
+
+      if (blockH_mm <= usableH_mm) {
+        // Block fits on one page — move to next page if it won't fit here
+        if (curY + blockH_mm > pageH - PAD && curY > PAD) {
+          doc.addPage();
+          fillPageBg();
+          curY = PAD;
+        }
+        const imgData = canvas.toDataURL('image/png');
+        doc.addImage(imgData, 'PNG', PAD, curY, imgW_mm, imgH_mm);
+        curY += imgH_mm + GAP_MM;
+      } else {
+        // Oversized block: slice across pages
+        const sliceH_canvasPx = usableH_px * 2; // *2 for scale:2
+        const totalSlices = Math.ceil(canvas.height / sliceH_canvasPx);
+        for (let s = 0; s < totalSlices; s++) {
+          if (s > 0) { doc.addPage(); fillPageBg(); curY = PAD; }
+          else if (curY > PAD) { doc.addPage(); fillPageBg(); curY = PAD; }
+          const sliceCanvas = document.createElement('canvas');
+          const sliceActual = Math.min(sliceH_canvasPx, canvas.height - s * sliceH_canvasPx);
+          sliceCanvas.width  = canvas.width;
+          sliceCanvas.height = sliceActual;
+          sliceCanvas.getContext('2d').drawImage(
+            canvas,
+            0, s * sliceH_canvasPx, canvas.width, sliceActual,
+            0, 0,                   canvas.width, sliceActual
+          );
+          const sliceData  = sliceCanvas.toDataURL('image/png');
+          const sliceH_mm  = (sliceActual / 2) / PX_PER_MM;
+          const sliceImgH  = (sliceCanvas.height / sliceCanvas.width) * imgW_mm;
+          doc.addImage(sliceData, 'PNG', PAD, curY, imgW_mm, sliceImgH);
+          curY += sliceImgH + GAP_MM;
+        }
+      }
+    }
 
     document.body.removeChild(container);
-
-    if(canvas.width === 0 || canvas.height === 0){
-      throw new Error('Canvas is empty — nothing to render.');
-    }
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    const pageCount = Math.ceil(imgH / pageH);
-
-    for(let i = 0; i < pageCount; i++){
-      if(i > 0) doc.addPage();
-      doc.addImage(imgData, 'JPEG', 0, -(i * pageH), imgW, imgH);
-    }
-
     doc.save(`fintori-report-${stamp}.pdf`);
     setExportButtonState('success');
 
