@@ -326,21 +326,21 @@ def render_pdf():
     return response
 
 # ── TEST ENDPOINT (remove or gate in production) ──────────────────────────────
-@app.route('/test.py', methods=['GET'])
-def test():
-    # SECURITY: Only accessible in debug/dev mode.
-    if not app.debug:
-        return jsonify({'error': 'Not found'}), 404
-    try:
-        resp = requests.post(
-            'https://api.anthropic.com/v1/messages',
-            headers={'Content-Type': 'application/json'},
-            json={'test': 'ok'},
-            timeout=10,
-        )
-        return f"Connected OK: {resp.text[:100]}"
-    except requests.exceptions.RequestException as e:
-        return f"Connection error: {e}"
+# @app.route('/test.py', methods=['GET'])
+# def test():
+#     # SECURITY: Only accessible in debug/dev mode.
+#     if not app.debug:
+#         return jsonify({'error': 'Not found'}), 404
+#     try:
+#         resp = requests.post(
+#             'https://api.anthropic.com/v1/messages',
+#             headers={'Content-Type': 'application/json'},
+#             json={'test': 'ok'},
+#             timeout=10,
+#         )
+#         return f"Connected OK: {resp.text[:100]}"
+#     except requests.exceptions.RequestException as e:
+#         return f"Connection error: {e}"
 
 # ── DEV SERVER ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
