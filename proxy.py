@@ -250,7 +250,7 @@ def proxy():
         )
     except requests.exceptions.RequestException as e:
         return jsonify({'error': f'Connection error: {e}'}), 502
-
+    
     return make_response(resp.text, resp.status_code,
                          {'Content-Type': 'application/json'})
 
