@@ -1,7 +1,15 @@
+# Environment — never commit
 .env
+ 
+# Python
 __pycache__/
 *.pyc
 *.pyo
 venv/
+ 
+# Node
 node_modules/
 test-results/
+ 
+# Build output — deploy dist/ contents to server, don't commit obfuscated code
+dist/

@@ -970,16 +970,6 @@ Reply ONLY in this JSON:
 }
 
 syncNavLockState();
-function toggleMore(){
-  const f=document.getElementById('moreFields');
-  const b=document.getElementById('moreBtn');
-  const open=!f.classList.contains('open');
-  const height=f.scrollHeight;
-  f.style.setProperty('--more-open-height', height + 'px');
-  f.classList.toggle('open', open);
-  b.innerHTML=open?'<i class="fas fa-minus"></i> Hide more expenses':'<i class="fas fa-plus"></i> Add more expenses';
-}
-
 function initAppChrome(){
   const navLabels=['1 · Revenue','2 · Costs','3 · Business','4 · Results'];
   navLabels.forEach((label,index)=>{
