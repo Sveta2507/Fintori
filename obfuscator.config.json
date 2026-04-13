@@ -1,0 +1,28 @@
+{
+  "compact": true,
+  "controlFlowFlattening": false,
+  "deadCodeInjection": false,
+  "debugProtection": false,
+  "disableConsoleOutput": false,
+  "identifierNamesGenerator": "mangled",
+  "log": false,
+  "numbersToExpressions": false,
+  "renameGlobals": false,
+  "selfDefending": false,
+  "simplify": true,
+  "splitStrings": true,
+  "splitStringsChunkLength": 6,
+  "stringArray": true,
+  "stringArrayCallsTransform": true,
+  "stringArrayEncoding": [
+    "base64"
+  ],
+  "stringArrayIndexShift": true,
+  "stringArrayRotate": true,
+  "stringArrayShuffle": true,
+  "stringArrayWrappersCount": 2,
+  "stringArrayWrappersType": "function",
+  "transformObjectKeys": true,
+  "unicodeEscapeSequence": false,
+  "target": "browser"
+}

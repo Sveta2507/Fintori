@@ -1,11 +1,14 @@
 """
 Fintori · Anthropic API Proxy (Python / Flask)
+Hardened version — see SECURITY notes inline.
 """
 
 import json
 import time
 import hashlib
 import os
+import re
+import secrets
 import tempfile
 
 from dotenv import load_dotenv
@@ -23,22 +26,28 @@ PROXY_TOKEN = os.getenv('PROXY_TOKEN')
 if not PROXY_TOKEN:
     raise RuntimeError('Missing PROXY_TOKEN environment variable')
 
-RATE_LIMIT      = 30
+# SECURITY: Whitelist only your own domains.
+# Add 'http://localhost:5000' or 'http://127.0.0.1:5500' for local dev only —
+# remove them before deploying to production.
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.getenv('ALLOWED_ORIGINS', '').split(',')
+    if o.strip()
+]
+# Fallback for local development if env var not set
+if not ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS = ['http://localhost:5000', 'http://127.0.0.1:5500']
+
+RATE_LIMIT      = 30          # requests per IP per hour
 ANTHROPIC_MODEL = 'claude-sonnet-4-6'
 MAX_TOKENS      = 400
+MAX_PROMPT_CHARS = 6000       # hard cap on total prompt size sent by client
 
-#$0.00426
-# SYSTEM_PROMPT = """UK small business financial analyst. Analyse only provided numbers. Never invent figures. For tax/legal matters refer to ACA/ACCA accountant.
+# SECURITY: Session tokens expire after this many seconds.
+SESSION_TOKEN_TTL  = 3600     # 1 hour
+# In-memory store: fine for single-process; swap for Redis in multi-worker.
+_session_tokens: dict[str, float] = {}
 
-# TAX 2025/26: Corp Tax 19%(≤£50k)/25%(>£250k). VAT threshold £90k, standard 20%. NLW £12.21/hr(21+). Employer NIC 15% above £5k/yr. Employee NIC 8% on £12,570-£50,270. Income Tax: £12,570 allowance, 20% to £50,270, 40% to £125,140, 45% above.
-
-# BENCHMARKS: Hospitality gross 25% net 5.5% debt 21d stock 14d. Retail gross 35% net 4% debt 30d stock 45d. Ecommerce gross 40% net 8.5% debt 14d stock 30d. Construction gross 20% net 6% debt 45d stock 60d. Professional gross 60% net 20% debt 30d. IT gross 65% net 17% debt 30d. Health gross 50% net 11.5% debt 21d stock 30d. Manufacturing gross 32.5% net 7% debt 45d stock 60d. Transport gross 20% net 5% debt 30d. Education gross 52.5% net 15% debt 30d. Finance gross 70% net 27.5% debt 21d. Other gross 37.5% net 8.8% debt 30d stock 45d.
-
-# THRESHOLDS: Net margin <0% critical, 0-5% poor, 5-10% ok, >10% healthy. Gross <15% critical, 15-20% low, 20-35% moderate, >35% strong. Runway <1mo danger, 1-3mo tight, >3mo ok. WC ratio <1x danger, 1-1.5x tight, >1.5x healthy. Debt/rev <3x ok, 3-6x monitor, >6x high risk.
-
-# Return ONLY the JSON format specified. No markdown. British English. £ for currency."""
-
-#  $0.00744
 SYSTEM_PROMPT = """You are a UK small business financial analyst. Analyse only the numbers provided. Never invent figures. Never give definitive tax advice — always direct the user to a qualified accountant or tax adviser for tax decisions.
 
 UK TAX RATES 2025/26:
@@ -76,25 +85,45 @@ HEALTH THRESHOLDS:
 RULES: analyse provided numbers only. British English. £ for currency. Flag implausible data. Tax/legal queries → refer to ACA/ACCA accountant. Return ONLY the specified JSON, no markdown."""
 
 
-
-
 app = Flask(__name__)
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
+# SECURITY: Only echo back the Origin header if it is on our whitelist.
+# Wildcard '*' is removed — it would let any website use our proxy.
 def _add_cors(response):
-    response.headers['Access-Control-Allow-Origin']  = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Proxy-Token'
+    origin = request.headers.get('Origin', '')
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin']  = origin
+        response.headers['Vary'] = 'Origin'
+    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS, GET'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Proxy-Token, X-Session-Token'
     return response
 
+# ── SECURITY HEADERS ──────────────────────────────────────────────────────────
+# SECURITY: Attach defensive HTTP headers to every response.
 @app.after_request
 def after_request(response):
-    return _add_cors(response)
+    response = _add_cors(response)
+    response.headers['X-Frame-Options']           = 'DENY'
+    response.headers['X-Content-Type-Options']    = 'nosniff'
+    response.headers['Referrer-Policy']           = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy']        = 'geolocation=(), microphone=(), camera=()'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        "font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self';"
+    )
+    return response
 
 # ── RATE LIMIT ────────────────────────────────────────────────────────────────
 def _check_rate_limit(ip: str) -> bool:
-    filename = os.path.join(tempfile.gettempdir(),
-                            f"fintori_{hashlib.md5(ip.encode()).hexdigest()}.json")
+    filename = os.path.join(
+        tempfile.gettempdir(),
+        f"fintori_{hashlib.md5(ip.encode()).hexdigest()}.json"
+    )
     now = int(time.time())
     try:
         with open(filename) as f:
@@ -110,13 +139,80 @@ def _check_rate_limit(ip: str) -> bool:
         json.dump(rl, f)
     return True
 
+# ── SESSION TOKEN STORE ───────────────────────────────────────────────────────
+def _purge_expired_tokens():
+    now = time.time()
+    expired = [t for t, ts in _session_tokens.items() if now - ts > SESSION_TOKEN_TTL]
+    for t in expired:
+        del _session_tokens[t]
+
+def _issue_session_token() -> str:
+    _purge_expired_tokens()
+    token = secrets.token_hex(32)
+    _session_tokens[token] = time.time()
+    return token
+
+def _validate_session_token(token: str) -> bool:
+    _purge_expired_tokens()
+    ts = _session_tokens.get(token)
+    if ts is None:
+        return False
+    if time.time() - ts > SESSION_TOKEN_TTL:
+        del _session_tokens[token]
+        return False
+    return True
+
+# ── SESSION TOKEN ENDPOINT ────────────────────────────────────────────────────
+# SECURITY: Browser fetches this directly (no SSR). Protection layers:
+#   1. CORS — only ALLOWED_ORIGINS can call this from a browser.
+#   2. Rate limiting — same per-IP cap as /proxy.py.
+#   3. Session tokens are short-lived and validated server-side.
+@app.route('/session-token', methods=['GET', 'OPTIONS'])
+def session_token():
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    ip = request.remote_addr or 'unknown'
+    if not _check_rate_limit(ip):
+        return jsonify({'error': 'Rate limit exceeded. Try again later.'}), 429
+
+    token = _issue_session_token()
+    resp  = make_response(jsonify({'token': token}))
+    resp.headers['Cache-Control'] = 'no-store, no-cache'
+    return resp
+
+# ── PAYLOAD VALIDATION ────────────────────────────────────────────────────────
+# SECURITY: Accept only the 'messages' field from the client.
+# Model, max_tokens, and system prompt are always set server-side.
+# This prevents attackers from overriding the model or injecting system prompts.
+def _validate_messages(messages) -> str | None:
+    """Return an error string, or None if valid."""
+    if not isinstance(messages, list) or not messages:
+        return 'messages must be a non-empty list'
+    if len(messages) > 10:
+        return 'Too many messages'
+    for msg in messages:
+        if not isinstance(msg, dict):
+            return 'Each message must be an object'
+        role = msg.get('role')
+        content = msg.get('content')
+        if role not in ('user', 'assistant'):
+            return f'Invalid role: {role!r}'
+        if not isinstance(content, str):
+            return 'message content must be a string'
+        if len(content) > MAX_PROMPT_CHARS:
+            return f'Message content exceeds {MAX_PROMPT_CHARS} characters'
+    return None
+
 # ── MAIN PROXY ────────────────────────────────────────────────────────────────
 @app.route('/proxy.py', methods=['OPTIONS', 'POST'])
 def proxy():
     if request.method == 'OPTIONS':
         return make_response('', 200)
 
-    if request.headers.get('X-Proxy-Token', '') != PROXY_TOKEN:
+    # SECURITY: Validate session token (short-lived, issued per page load).
+    session_tok = request.headers.get('X-Session-Token', '')
+    if not _validate_session_token(session_tok):
         return jsonify({'error': 'Unauthorized'}), 401
 
     ip = request.remote_addr or 'unknown'
@@ -127,10 +223,20 @@ def proxy():
     if not payload:
         return jsonify({'error': 'Invalid or empty JSON body'}), 400
 
-    payload['model']      = ANTHROPIC_MODEL
-    payload['max_tokens'] = MAX_TOKENS
-    payload['system']     = SYSTEM_PROMPT
-    
+    # SECURITY: Extract and validate only 'messages'; ignore everything else.
+    messages = payload.get('messages')
+    err = _validate_messages(messages)
+    if err:
+        return jsonify({'error': err}), 400
+
+    # SECURITY: Build a clean payload — client cannot override model/tokens/system.
+    clean_payload = {
+        'model':      ANTHROPIC_MODEL,
+        'max_tokens': MAX_TOKENS,
+        'system':     SYSTEM_PROMPT,
+        'messages':   messages,
+    }
+
     try:
         resp = requests.post(
             'https://api.anthropic.com/v1/messages',
@@ -139,47 +245,31 @@ def proxy():
                 'x-api-key':         ANTHROPIC_API_KEY,
                 'anthropic-version': '2023-06-01',
             },
-            json=payload,
+            json=clean_payload,
             timeout=30,
         )
     except requests.exceptions.RequestException as e:
         return jsonify({'error': f'Connection error: {e}'}), 502
-
-    # for debugging prompt cost
-    # try:
-    #     d = resp.json()
-    #     u = d.get('usage', {})
-    #     inp  = u.get('input_tokens', 0)
-    #     out  = u.get('output_tokens', 0)
-    #     cost = (inp / 1_000_000) * 3.00 + (out / 1_000_000) * 15.00
-    #     print(f"in={inp} out={out} ${cost:.5f}")
-    # except Exception:
-    #     pass
-
+    
     return make_response(resp.text, resp.status_code,
                          {'Content-Type': 'application/json'})
 
-# ── TEST ENDPOINT ─────────────────────────────────────────────────────────────
-@app.route('/test.py', methods=['GET'])
-def test():
-    try:
-        resp = requests.post(
-            'https://api.anthropic.com/v1/messages',
-            headers={'Content-Type': 'application/json'},
-            json={'test': 'ok'},
-            timeout=10,
-        )
-        return f"Connected OK: {resp.text[:100]}"
-    except requests.exceptions.RequestException as e:
-        return f"Connection error: {e}"
-
 # ── PDF ENDPOINT ──────────────────────────────────────────────────────────────
+# SECURITY: Patterns that could trigger SSRF or local file reads inside the
+# Playwright-rendered page are blocked before rendering.
+_PDF_DANGEROUS = re.compile(
+    r'file://|localhost|127\.0\.0\.|169\.254\.|192\.168\.|10\.\d+\.\d+\.|'
+    r'0\.0\.0\.0|<script|XMLHttpRequest|fetch\s*\(|eval\s*\(',
+    re.IGNORECASE,
+)
+
 @app.route('/pdf.py', methods=['OPTIONS', 'POST'])
 def render_pdf():
     if request.method == 'OPTIONS':
         return make_response('', 200)
 
-    if request.headers.get('X-Proxy-Token', '') != PROXY_TOKEN:
+    session_tok = request.headers.get('X-Session-Token', '')
+    if not _validate_session_token(session_tok):
         return jsonify({'error': 'Unauthorized'}), 401
 
     payload  = request.get_json(silent=True) or {}
@@ -189,8 +279,16 @@ def render_pdf():
     if not html or not isinstance(html, str):
         return jsonify({'error': 'Missing HTML content'}), 400
 
-    if not filename.lower().endswith('.pdf'):
-        filename = f'{filename}.pdf'
+    # SECURITY: Reject HTML that contains dangerous patterns.
+    if _PDF_DANGEROUS.search(html):
+        return jsonify({'error': 'HTML contains disallowed content'}), 400
+
+    # SECURITY: Cap size to prevent memory exhaustion.
+    if len(html) > 600_000:
+        return jsonify({'error': 'HTML content too large'}), 400
+
+    if not re.match(r'^[\w\-]+\.pdf$', filename):
+        filename = 'fintori-report.pdf'
 
     if '<html' not in html.lower():
         html = f"""<!DOCTYPE html>
@@ -223,9 +321,26 @@ def render_pdf():
         return jsonify({'error': f'PDF render failed: {e}'}), 500
 
     response = make_response(pdf_bytes)
-    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Type']        = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+# ── TEST ENDPOINT (remove or gate in production) ──────────────────────────────
+# @app.route('/test.py', methods=['GET'])
+# def test():
+#     # SECURITY: Only accessible in debug/dev mode.
+#     if not app.debug:
+#         return jsonify({'error': 'Not found'}), 404
+#     try:
+#         resp = requests.post(
+#             'https://api.anthropic.com/v1/messages',
+#             headers={'Content-Type': 'application/json'},
+#             json={'test': 'ok'},
+#             timeout=10,
+#         )
+#         return f"Connected OK: {resp.text[:100]}"
+#     except requests.exceptions.RequestException as e:
+#         return f"Connection error: {e}"
 
 # ── DEV SERVER ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
