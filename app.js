@@ -1,3 +1,367 @@
+// ── AUTH STATE ────────────────────────────────────────────────────────
+// Single source of truth for the logged-in user
+let _currentUser = null;
+
+function getApiBase() {
+  if (window.FINTORI_API_BASE) return String(window.FINTORI_API_BASE).replace(/\/+$/, '');
+  if (window.location.port === '5500')
+    return `${window.location.protocol}//${window.location.hostname}:5000`;
+  return window.location.origin.replace(/\/+$/, '');
+}
+
+async function initAuth() {
+  // 1. Check for Google OAuth redirect token in URL fragment
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken  = urlParams.get('auth_token');
+  if (urlToken) {
+    sessionStorage.setItem('fintori_auth_token', urlToken);
+    // Clean the token from the URL immediately
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('auth_token');
+    history.replaceState(null, '', clean.toString());
+  }
+
+  // 2. Fetch current user from server (validates session cookie)
+  try {
+    const res  = await fetch(`${getApiBase()}/auth/me`, {
+      credentials: 'include',
+      headers: { 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' },
+    });
+    const data = await res.json();
+    if (data.user) {
+      _currentUser = data.user;
+      sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+      if (data.session_token) {
+        sessionStorage.setItem('fintori_auth_token', data.session_token);
+      }
+    } else {
+      _currentUser = null;
+    }
+  } catch {
+    _currentUser = null;
+  }
+
+  // 3. If not logged in — redirect to auth page
+  if (!_currentUser) {
+    window.location.href = 'auth.html';
+    return;
+  }
+
+  // 4. Remove auth overlay and boot the app
+  const overlay = document.getElementById('authOverlay');
+  if (overlay) overlay.remove();
+
+  renderAuthControls();
+  renderUpgradeBanner();
+  renderProFeatures();
+  loadHistory();
+}
+
+function renderAuthControls() {
+  const wrap = document.getElementById('authControls');
+  if (!wrap || !_currentUser) return;
+
+  const isPaid = _currentUser.plan === 'paid';
+  wrap.innerHTML = `
+    <span class="hdr-user-name">${_currentUser.first_name}</span>
+    ${!isPaid ? `<a href="pricing.html" class="hdr-upgrade-btn">
+      <i class="fas fa-star"></i> Upgrade</a>` : ''}
+    <button class="hdr-logout-btn" onclick="logoutUser()" title="Sign out">
+      <i class="fas fa-right-from-bracket"></i>
+    </button>`;
+}
+
+async function logoutUser() {
+  try {
+    await fetch(`${getApiBase()}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {}
+  sessionStorage.removeItem('fintori_auth_token');
+  sessionStorage.removeItem('fintori_user');
+  window.location.href = 'auth.html';
+}
+
+function refreshUserFromHeader(headers) {
+  try {
+    const userData = headers.get('X-User-Data');
+    if (userData) {
+      _currentUser = JSON.parse(userData);
+      sessionStorage.setItem('fintori_user', JSON.stringify(_currentUser));
+      renderAuthControls();
+    }
+  } catch {}
+}
+
+function renderUpgradeBanner() {
+  if (!_currentUser) return;
+  if (_currentUser.plan === 'paid') return;
+  if (_currentUser.upgrade_banner_dismissed) return;
+
+  const banner = document.getElementById('upgradeBanner');
+  if (banner) banner.style.display = 'block';
+
+  const closeBtn = document.getElementById('upgradeBannerClose');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', async () => {
+      if (banner) banner.style.display = 'none';
+      try {
+        await fetch(`${getApiBase()}/auth/dismiss-banner`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+      } catch {}
+    });
+  }
+}
+
+function renderProFeatures() {
+  if (!_currentUser) return;
+  const isPaid = _currentUser.plan === 'paid';
+  // Pro cards are shown after calculation renders
+  window._fintoriIsPaid = isPaid;
+}
+
+// ── HISTORY SIDEBAR ───────────────────────────────────────────────────
+async function loadHistory() {
+  if (!_currentUser) return;
+  try {
+    const res  = await fetch(`${getApiBase()}/history`, {
+      credentials: 'include',
+    });
+    const data = await res.json();
+    renderHistorySidebar(data.history || []);
+  } catch {}
+}
+
+function renderHistorySidebar(history) {
+  const list = document.getElementById('historyList');
+  if (!list) return;
+
+  const isPaid = _currentUser && _currentUser.plan === 'paid';
+  const note   = document.getElementById('historyPlanNote');
+  if (note) {
+    note.textContent = isPaid ? '' : 'Free — history limited';
+  }
+
+  if (!history.length) {
+    list.innerHTML = '<div class="history-empty">No calculations yet.<br>Your results will appear here.</div>';
+    return;
+  }
+
+  list.innerHTML = history.map((c, i) => `
+    <div class="history-item" title="${c.label}" onclick="loadHistoryItem(${JSON.stringify(c.summary).replace(/"/g, '&quot;')})">
+      <div class="history-item-num">${i + 1}</div>
+      <div class="history-item-info">
+        <div class="history-item-label">${c.label}</div>
+        <div class="history-item-date">${c.created_at}</div>
+      </div>
+      <button class="history-item-del" onclick="deleteHistoryItem(${c.id}, this)"
+        title="Delete"><i class="fas fa-trash-alt"></i></button>
+    </div>`).join('');
+}
+
+function loadHistoryItem(summary) {
+  if (!summary) return;
+
+  alert(
+    `Calculation from history:\n` +
+    `Revenue: £${(summary.avgRev||0).toLocaleString('en-GB')}/mo\n` +
+    `Net margin: ${((summary.netMgn||0)*100).toFixed(1)}%\n` +
+    `Sector: ${summary.sector||'—'}`
+  );
+}
+
+async function deleteHistoryItem(id, btn) {
+  if (!confirm('Delete this calculation from history?')) return;
+  try {
+    await fetch(`${getApiBase()}/history/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    btn.closest('.history-item').remove();
+    // Show empty state if no items left
+    const list = document.getElementById('historyList');
+    if (list && !list.querySelector('.history-item')) {
+      list.innerHTML = '<div class="history-empty">No calculations yet.<br>Your results will appear here.</div>';
+    }
+  } catch {}
+}
+
+async function saveCalcToHistory(summary) {
+  if (!_currentUser) return;
+  try {
+    await fetch(`${getApiBase()}/history`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ summary }),
+    });
+    loadHistory();
+  } catch {}
+}
+
+// ── BUSINESS HEALTH SCORE (Pro) ───────────────────────────────────────
+function renderHealthScore(d) {
+  const card = document.getElementById('healthScoreCard');
+  if (!card || !window._fintoriIsPaid) return;
+  card.style.display = 'block';
+
+  // Weighted scoring: 0–100
+  const scores = [
+    { name: 'Net Margin',      w: 25, s: d.netMgn  >= .10 ? 100 : d.netMgn >= .05 ? 60 : d.netMgn >= 0 ? 30 : 0 },
+    { name: 'Gross Margin',    w: 20, s: d.grossMgn >= .35 ? 100 : d.grossMgn >= .20 ? 65 : d.grossMgn >= .15 ? 35 : 0 },
+    { name: 'Cash Runway',     w: 20, s: d.runway === null ? 80 : d.runway >= 3 ? 100 : d.runway >= 1 ? 50 : 0 },
+    { name: 'Working Capital', w: 15, s: d.wcr === null ? 80 : d.wcr >= 1.5 ? 100 : d.wcr >= 1 ? 55 : 0 },
+    { name: 'Debt Load',       w: 10, s: d.debtRatio <= 3 ? 100 : d.debtRatio <= 6 ? 50 : 0 },
+    { name: 'Revenue Trend',   w: 10, s: d.revGrowth > 0 ? 100 : d.revGrowth === 0 ? 60 : 20 },
+  ];
+
+  const total = scores.reduce((acc, s) => acc + s.s * s.w / 100, 0);
+  const score = Math.round(total);
+
+  const color = score >= 70 ? '#22c55e' : score >= 45 ? '#f59e0b' : '#ef4444';
+  const label = score >= 70 ? 'Healthy' : score >= 45 ? 'Needs Attention' : 'At Risk';
+
+  // Animate arc: 157px circumference of the half-circle
+  const arc = document.getElementById('healthScoreArc');
+  if (arc) {
+    arc.setAttribute('stroke', color);
+    const offset = 157 - (157 * score / 100);
+    setTimeout(() => { arc.style.transition = 'stroke-dashoffset 1s ease'; arc.setAttribute('stroke-dashoffset', offset); }, 100);
+  }
+
+  const numEl = document.getElementById('healthScoreNumber');
+  if (numEl) { numEl.textContent = score; numEl.style.color = color; }
+
+  const lblEl = document.getElementById('healthScoreLabel');
+  if (lblEl) { lblEl.textContent = label; lblEl.style.color = color; }
+
+  const breakdown = document.getElementById('healthScoreBreakdown');
+  if (breakdown) {
+    breakdown.innerHTML = scores.map(s => {
+      const c = s.s >= 80 ? '#22c55e' : s.s >= 50 ? '#f59e0b' : '#ef4444';
+      return `<div class="hs-row">
+        <span class="hs-name">${s.name}</span>
+        <div class="hs-bar-track"><div class="hs-bar-fill" style="width:${s.s}%;background:${c}"></div></div>
+        <span class="hs-val" style="color:${c}">${s.s}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── WHAT-IF TOOL (Pro) ────────────────────────────────────────────────
+function renderWhatIf(d) {
+  const card = document.getElementById('whatIfCard');
+  if (!card || !window._fintoriIsPaid) return;
+  card.style.display = 'block';
+
+  const slidersEl  = document.getElementById('whatIfSliders');
+  const resultsEl  = document.getElementById('whatIfResults');
+  if (!slidersEl || !resultsEl) return;
+
+  // Store baseline data for What-If calculations
+  window._wiBase = d;
+  window._wiDeltas = { rev: 0, costs: 0, pricing: 0 };
+
+  slidersEl.innerHTML = `
+    <div class="wi-slider-row">
+      <div class="wi-slider-info">
+        <span class="wi-slider-label">Revenue Change</span>
+        <span class="wi-slider-value" id="wiRevVal">+0%</span>
+      </div>
+      <input type="range" class="wi-slider" id="wiRev" min="-50" max="100" value="0" step="5"
+             oninput="updateWhatIf()">
+    </div>
+    <div class="wi-slider-row">
+      <div class="wi-slider-info">
+        <span class="wi-slider-label">Cost Reduction</span>
+        <span class="wi-slider-value" id="wiCostVal">+0%</span>
+      </div>
+      <input type="range" class="wi-slider" id="wiCost" min="-50" max="50" value="0" step="5"
+             oninput="updateWhatIf()">
+    </div>
+    <div class="wi-slider-row">
+      <div class="wi-slider-info">
+        <span class="wi-slider-label">Price Increase</span>
+        <span class="wi-slider-value" id="wiPriceVal">+0%</span>
+      </div>
+      <input type="range" class="wi-slider" id="wiPrice" min="0" max="50" value="0" step="1"
+             oninput="updateWhatIf()">
+    </div>`;
+
+  updateWhatIf();
+}
+
+function updateWhatIf() {
+  const base = window._wiBase;
+  if (!base) return;
+
+  const revDelta   = parseInt(document.getElementById('wiRev').value, 10);
+  const costDelta  = parseInt(document.getElementById('wiCost').value, 10);
+  const priceDelta = parseInt(document.getElementById('wiPrice').value, 10);
+
+  document.getElementById('wiRevVal').textContent   = (revDelta   >= 0 ? '+' : '') + revDelta   + '%';
+  document.getElementById('wiCostVal').textContent  = (costDelta  >= 0 ? '+' : '') + costDelta  + '%';
+  document.getElementById('wiPriceVal').textContent = (priceDelta >= 0 ? '+' : '') + priceDelta + '%';
+
+  // Colour the value labels
+  ['wiRevVal', 'wiPriceVal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.color = parseFloat(el.textContent) >= 0 ? '#22c55e' : '#ef4444';
+  });
+  const costEl = document.getElementById('wiCostVal');
+  if (costEl) costEl.style.color = costDelta <= 0 ? '#22c55e' : '#ef4444';
+
+  // Recalculate with adjustments
+  const revFactor   = 1 + (revDelta + priceDelta) / 100;
+  const costFactor  = 1 - costDelta / 100;
+  const newAvgRev   = base.avgRev   * revFactor;
+  const newCostsM   = base.totalCostsM * costFactor;
+  const newProfit3  = (newAvgRev - newCostsM) * 3;
+  const newNetMgn   = newAvgRev > 0 ? (newAvgRev - newCostsM) / newAvgRev : 0;
+  const newRunway   = newCostsM > 0 ? base.cash / newCostsM : null;
+  const newGrossMgn = newAvgRev > 0 ? (newAvgRev - base.cogsM * costFactor) / newAvgRev : 0;
+
+  const fmSign = n => (n < 0 ? '-£' : '£') + Math.round(Math.abs(n)).toLocaleString('en-GB');
+  const fp2    = n => (n * 100).toFixed(1) + '%';
+  const delta  = (now, was) => {
+    const d = now - was;
+    const s = (d >= 0 ? '+' : '') + (d < 0 ? '-£' : '£') +
+              Math.round(Math.abs(d)).toLocaleString('en-GB');
+    return `<span style="color:${d >= 0 ? '#22c55e' : '#ef4444'};font-size:12px;font-weight:600">${s}</span>`;
+  };
+
+  document.getElementById('whatIfResults').innerHTML = `
+    <div class="wi-results-grid">
+      <div class="wi-result-item">
+        <div class="wi-result-label">Monthly Revenue</div>
+        <div class="wi-result-val">${fmSign(newAvgRev)}</div>
+        ${delta(newAvgRev, base.avgRev)}
+      </div>
+      <div class="wi-result-item">
+        <div class="wi-result-label">Monthly Profit</div>
+        <div class="wi-result-val">${fmSign(newProfit3 / 3)}</div>
+        ${delta(newProfit3 / 3, base.totProfit / 3)}
+      </div>
+      <div class="wi-result-item">
+        <div class="wi-result-label">Net Margin</div>
+        <div class="wi-result-val">${fp2(newNetMgn)}</div>
+        <span style="color:${newNetMgn >= base.netMgn ? '#22c55e' : '#ef4444'};font-size:12px;font-weight:600">
+          ${(newNetMgn >= base.netMgn ? '+' : '') + ((newNetMgn - base.netMgn) * 100).toFixed(1)}pp
+        </span>
+      </div>
+      <div class="wi-result-item">
+        <div class="wi-result-label">Cash Runway</div>
+        <div class="wi-result-val">${newRunway !== null ? newRunway.toFixed(1) + ' mo' : '—'}</div>
+        ${newRunway !== null && base.runway !== null
+          ? `<span style="color:${newRunway >= base.runway ? '#22c55e' : '#ef4444'};font-size:12px;font-weight:600">
+               ${(newRunway >= base.runway ? '+' : '') + (newRunway - base.runway).toFixed(1)} mo</span>`
+          : ''}
+      </div>
+    </div>`;
+}
 // ── BENCHMARKS ───────────────────────────────────────────────────────
 const BM={
   hospitality:  {gross:.25,net:.055,label:'Hospitality / Food & Drink',stockDays:14,debtDays:21},
@@ -689,6 +1053,42 @@ function render(){
     localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify({ ...d, _fp: fp }));
     localStorage.setItem('fintori_calc_fp', fp);
   } catch(e){}
+  // Save calculation to server history
+  saveCalcToHistory({
+    avgRev:      Math.round(d.avgRev),
+    totProfit:   Math.round(d.totProfit),
+    netMgn:      +d.netMgn.toFixed(4),
+    grossMgn:    +d.grossMgn.toFixed(4),
+    totalCostsM: Math.round(d.totalCostsM),
+    sector:      d.sector,
+    runway:      d.runway !== null ? +d.runway.toFixed(2) : null,
+    wcr:         d.wcr    !== null ? +d.wcr.toFixed(2)    : null,
+    debtRatio:   +d.debtRatio.toFixed(2),
+  });
+
+  // Render Pro features
+  renderHealthScore(d);
+  renderWhatIf(d);
+
+  // Show upgrade nudge on AI/PDF buttons for free users who've used their trial
+  if (_currentUser && _currentUser.plan === 'free') {
+    if (_currentUser.ai_remaining <= 0) {
+      const aiTrigger = document.getElementById('verdictAITrigger');
+      if (aiTrigger) {
+        aiTrigger.innerHTML = '<i class="fas fa-star"></i><span>Upgrade for AI Reports</span>';
+        aiTrigger.onclick = () => window.location.href = 'pricing.html';
+        aiTrigger.classList.remove('is-busy', 'is-hidden');
+        aiTrigger.disabled = false;
+      }
+    }
+    if (_currentUser.pdf_remaining <= 0) {
+      const pdfBtn = document.getElementById('exportPdfBtn');
+      if (pdfBtn) {
+        pdfBtn.innerHTML = '<span class="btn-label"><i class="fas fa-star"></i> Upgrade for PDF</span>';
+        pdfBtn.onclick = () => window.location.href = 'pricing.html';
+      }
+    }
+  }
 }
 
 function syncBenchFillHeight() {
@@ -842,12 +1242,18 @@ let _sessionToken = null;
 
 async function _ensureSessionToken() {
   if (_sessionToken) return _sessionToken;
-  // No SSR: call /session-token directly from the browser.
-  // Security relies on CORS (allowed origins only) + server-side rate limiting.
+  const authToken = sessionStorage.getItem('fintori_auth_token') || '';
   const resp = await fetch(backendUrl('session-token'), {
     method: 'GET',
     cache: 'no-store',
+    credentials: 'include',
+    headers: { 'X-Auth-Token': authToken },
   });
+  if (resp.status === 401) {
+    // Session expired — redirect to login
+    window.location.href = 'auth.html';
+    throw new Error('Session expired');
+  }
   if (!resp.ok) throw new Error('Could not initialise session');
   const data = await resp.json();
   _sessionToken = data.token;
@@ -880,6 +1286,7 @@ async function callClaudeAPI(prompt) {
       messages: [{ role: 'user', content: prompt }]
     })
   });
+  refreshUserFromHeader(response.headers);
   if (!response.ok) {
     // If the session token expired, clear it so next call re-fetches
     if (response.status === 401) { _sessionToken = null; }
@@ -1993,31 +2400,41 @@ async function exportReport(){
   }
 }
 
-initAppChrome();
-restoreFormState();
-recalc();
-bindFormPersistence();
-computeUnlockedStep();
-syncNavLockState();
-document.addEventListener("DOMContentLoaded", () => {
-  const rotatingButtons = document.querySelectorAll(".rotating-cta");
-  if (!rotatingButtons.length) return;
-  let angle = 0;
-  const rotateBorder = () => {
-    angle = (angle + 1) % 360;
-    rotatingButtons.forEach((button) => {
-      button.style.setProperty("--angle", `${angle}deg`);
-    });
-    requestAnimationFrame(rotateBorder);
-  };
-  rotateBorder();
-});
 window.addEventListener('resize', syncBenchFillHeight);
 window.addEventListener('resize', syncVerdictAIHeight);
-const _urlStep = getStepFromUrl();
-// If the user reloaded on the results page (step=4) and results exist, restore them
-if(_urlStep === 4 && localStorage.getItem(RESULTS_STORAGE_KEY)){
-  unlockedStep = Math.max(unlockedStep, 4);
+
+// ── BOOT ─────────────────────────────────────────────────────────────
+// initAuth проверяет сессию, редиректит на auth.html если не залогинен,
+// затем запускает всю инициализацию приложения
+document.addEventListener('DOMContentLoaded', async () => {
+  // Анимация rotating-cta (если есть на странице)
+  const rotatingButtons = document.querySelectorAll('.rotating-cta');
+  if (rotatingButtons.length) {
+    let angle = 0;
+    const rotateBorder = () => {
+      angle = (angle + 1) % 360;
+      rotatingButtons.forEach(b => b.style.setProperty('--angle', `${angle}deg`));
+      requestAnimationFrame(rotateBorder);
+    };
+    rotateBorder();
+  }
+
+  // Проверка авторизации — если не залогинен, initAuth сделает редирект
+  await initAuth();
+  if (!_currentUser) return;
+
+  // Стандартный запуск приложения
+  initAppChrome();
+  restoreFormState();
+  recalc();
+  bindFormPersistence();
+  computeUnlockedStep();
   syncNavLockState();
-}
-goTo(Math.min(Math.max(_urlStep, 1), unlockedStep));
+
+  const _urlStep = getStepFromUrl();
+  if (_urlStep === 4 && localStorage.getItem(RESULTS_STORAGE_KEY)) {
+    unlockedStep = Math.max(unlockedStep, 4);
+    syncNavLockState();
+  }
+  goTo(Math.min(Math.max(_urlStep, 1), unlockedStep));
+});

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fintori — Plans & Pricing</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg, #f5f7fb); color: var(--text, #1a1d23); min-height: 100vh; }
+
+  header {
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border, #e2e6ef);
+    background: var(--surface, #fff);
+  }
+
+  .logo-name {
+    font-size: 20px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-decoration: none;
+  }
+
+  .pricing-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 56px 24px;
+  }
+
+  .pricing-hdr {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .pricing-hdr h1 {
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+
+  .pricing-hdr p {
+    font-size: 17px;
+    color: var(--g600, #4b5563);
+  }
+
+  .plans-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  @media (max-width: 600px) { .plans-grid { grid-template-columns: 1fr; } }
+
+  .plan-card {
+    background: var(--surface, #fff);
+    border: 1.5px solid var(--border, #e2e6ef);
+    border-radius: 20px;
+    padding: 32px;
+    position: relative;
+  }
+
+  .plan-card.featured {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37,99,235,.08);
+  }
+
+  .plan-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 20px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+
+  .plan-name {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--g400, #9ca3af);
+    margin-bottom: 12px;
+  }
+
+  .plan-price {
+    font-size: 42px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+
+  .plan-price span { font-size: 18px; font-weight: 500; color: var(--g600, #4b5563); }
+
+  .plan-desc {
+    font-size: 14px;
+    color: var(--g600, #4b5563);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .feature-list { list-style: none; margin-bottom: 28px; }
+
+  .feature-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border, #e2e6ef);
+    line-height: 1.4;
+  }
+
+  .feature-list li:last-child { border-bottom: none; }
+
+  .fi-yes { color: #22c55e; flex-shrink: 0; margin-top: 1px; }
+  .fi-no  { color: var(--g300, #d1d5db); flex-shrink: 0; margin-top: 1px; }
+  .fi-lim { color: #f59e0b; flex-shrink: 0; margin-top: 1px; }
+
+  .btn-plan {
+    width: 100%;
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: opacity .15s;
+    font-family: inherit;
+  }
+
+  .btn-plan:hover { opacity: .88; }
+
+  .btn-plan-free {
+    background: var(--bg, #f5f7fb);
+    color: var(--text, #1a1d23);
+    border: 1.5px solid var(--border, #e2e6ef);
+  }
+
+  .btn-plan-paid {
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+  }
+
+  .compare-note {
+    text-align: center;
+    font-size: 13px;
+    color: var(--g400, #9ca3af);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo-name">Fintori</a>
+  <a href="app.html" style="font-size:14px;color:#2563eb;font-weight:600;text-decoration:none">
+    <i class="fas fa-arrow-left"></i> Back to Calculator
+  </a>
+</header>
+
+<div class="pricing-wrap">
+  <div class="pricing-hdr">
+    <h1>Simple, Transparent Pricing</h1>
+    <p>Everything you need to manage your UK business finances — start free, upgrade when you're ready.</p>
+  </div>
+
+  <div class="plans-grid">
+
+    <!-- FREE -->
+    <div class="plan-card">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">£0 <span>/ forever</span></div>
+      <div class="plan-desc">All core calculations, no signup to a paywall. Full access to everything that matters.</div>
+      <ul class="feature-list">
+        <li><i class="fas fa-check-circle fi-yes"></i> All financial calculations (revenue, costs, margins)</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> 11 health indicators with traffic lights</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Sector benchmarks (12 UK industries)</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Breakeven analysis</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Cost breakdown & action checklist</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> UK Tax Reference 2025/26</li>
+        <li><i class="fas fa-exclamation-circle fi-lim"></i> AI Report — <strong>1 free trial</strong></li>
+        <li><i class="fas fa-exclamation-circle fi-lim"></i> PDF Export — <strong>1 free trial</strong></li>
+        <li><i class="fas fa-times-circle fi-no"></i> Calculation history</li>
+        <li><i class="fas fa-times-circle fi-no"></i> Business Health Score</li>
+        <li><i class="fas fa-times-circle fi-no"></i> What-If scenario tool</li>
+      </ul>
+      <button class="btn-plan btn-plan-free" onclick="window.location.href='app.html'">
+        Continue with Free
+      </button>
+    </div>
+
+    <!-- PRO -->
+    <div class="plan-card featured">
+      <div class="plan-badge">Most Popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">£5 <span>/ month</span></div>
+      <div class="plan-desc">Everything in Free, plus AI insights, unlimited exports, and tools that help you grow.</div>
+      <ul class="feature-list">
+        <li><i class="fas fa-check-circle fi-yes"></i> All financial calculations (revenue, costs, margins)</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> 11 health indicators with traffic lights</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Sector benchmarks (12 UK industries)</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Breakeven analysis</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Cost breakdown & action checklist</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> UK Tax Reference 2025/26</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> AI Report — <strong>50 per month</strong></li>
+        <li><i class="fas fa-check-circle fi-yes"></i> PDF Export — <strong>unlimited</strong></li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Full calculation history</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> Business Health Score</li>
+        <li><i class="fas fa-check-circle fi-yes"></i> What-If scenario tool</li>
+      </ul>
+      <button class="btn-plan btn-plan-paid" onclick="goToPay()">
+        <i class="fas fa-arrow-right"></i> Subscribe for £5/month
+      </button>
+    </div>
+
+  </div>
+
+  <p class="compare-note">
+    Cancel anytime. No hidden fees. VAT may apply. Secure payment via Stripe.
+  </p>
+</div>
+
+<script>
+function goToPay() {
+  const user = JSON.parse(sessionStorage.getItem('fintori_user') || 'null');
+  if (!user) {
+    window.location.href = 'auth.html?tab=register';
+    return;
+  }
+  window.location.href = 'payment.html';
+}
+</script>
+</body>
+</html>

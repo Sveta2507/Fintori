@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fintori — Sign In / Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg, #f5f7fb);
+    color: var(--text, #1a1d23);
+  }
+
+  header {
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border, #e2e6ef);
+    background: var(--surface, #fff);
+  }
+
+  .logo-name {
+    font-size: 20px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .auth-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .auth-card {
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e2e6ef);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.06);
+  }
+
+  .auth-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg, #f5f7fb);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 28px;
+  }
+
+  .auth-tab {
+    flex: 1;
+    padding: 9px;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--g400, #9ca3af);
+    transition: all .18s;
+  }
+
+  .auth-tab.active {
+    background: var(--surface, #fff);
+    color: var(--text, #1a1d23);
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+
+  .auth-form { display: none; }
+  .auth-form.active { display: block; }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text, #1a1d23);
+  }
+
+  .field label .opt {
+    font-weight: 400;
+    color: var(--g400, #9ca3af);
+    font-size: 12px;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border, #e2e6ef);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--bg, #f5f7fb);
+    color: var(--text, #1a1d23);
+    transition: border-color .15s;
+    outline: none;
+  }
+
+  .field input:focus {
+    border-color: #2563eb;
+    background: var(--surface, #fff);
+  }
+
+  .field input.has-error {
+    border-color: #ef4444;
+  }
+
+  .field-error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 4px;
+    display: none;
+  }
+
+  .field-error.show { display: block; }
+
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 40px; }
+  .pw-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--g400, #9ca3af);
+    padding: 2px;
+    font-size: 14px;
+  }
+
+  .pw-strength {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .pw-strength-bar {
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border, #e2e6ef);
+    transition: background .2s;
+  }
+
+  .pw-strength-bar.weak   { background: #ef4444; }
+  .pw-strength-bar.fair   { background: #f59e0b; }
+  .pw-strength-bar.good   { background: #3b82f6; }
+  .pw-strength-bar.strong { background: #22c55e; }
+
+  .pw-strength-label {
+    font-size: 11px;
+    color: var(--g400, #9ca3af);
+    margin-top: 3px;
+  }
+
+  .terms-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--g600, #4b5563);
+    line-height: 1.5;
+  }
+
+  .terms-row input[type=checkbox] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    accent-color: #2563eb;
+    cursor: pointer;
+  }
+
+  .terms-row a {
+    color: #2563eb;
+    text-decoration: none;
+  }
+
+  .btn-primary-auth {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-primary-auth:hover { opacity: .9; }
+  .btn-primary-auth:disabled { opacity: .5; cursor: not-allowed; }
+
+  .divider-or {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0;
+    color: var(--g400, #9ca3af);
+    font-size: 12px;
+  }
+
+  .divider-or::before, .divider-or::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border, #e2e6ef);
+  }
+
+  .btn-google {
+    width: 100%;
+    padding: 11px;
+    background: var(--surface, #fff);
+    border: 1.5px solid var(--border, #e2e6ef);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text, #1a1d23);
+    transition: border-color .15s, background .15s;
+    font-family: inherit;
+  }
+
+  .btn-google:hover {
+    border-color: #2563eb;
+    background: var(--bg, #f5f7fb);
+  }
+
+  .google-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .auth-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #dc2626;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .auth-error.show { display: block; }
+
+  .btn-spin {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" style="text-decoration:none">
+    <span class="logo-name">Fintori</span>
+  </a>
+</header>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Create Account</button>
+    </div>
+
+    <!-- ── LOGIN FORM ── -->
+    <div class="auth-form active" id="formLogin">
+      <div class="auth-error" id="loginError"></div>
+
+      <div class="field">
+        <label>Email address</label>
+        <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+        <div class="field-error" id="loginEmailErr"></div>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password">
+          <button class="pw-toggle" type="button" onclick="togglePw('loginPassword', this)">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="field-error" id="loginPasswordErr"></div>
+      </div>
+
+      <button class="btn-primary-auth" id="loginBtn" onclick="submitLogin()">
+        <i class="fas fa-arrow-right-to-bracket"></i> Sign In
+      </button>
+
+      <div class="divider-or">or</div>
+
+      <button class="btn-google" onclick="googleAuth()">
+        <svg class="google-icon" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+    </div>
+
+    <!-- ── REGISTER FORM ── -->
+    <div class="auth-form" id="formRegister">
+      <div class="auth-error" id="registerError"></div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>First Name</label>
+          <input type="text" id="regFirstName" placeholder="Jane" autocomplete="given-name">
+          <div class="field-error" id="regFirstNameErr"></div>
+        </div>
+        <div class="field">
+          <label>Last Name</label>
+          <input type="text" id="regLastName" placeholder="Smith" autocomplete="family-name">
+          <div class="field-error" id="regLastNameErr"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Middle Name <span class="opt">(optional)</span></label>
+        <input type="text" id="regSecondName" placeholder="Optional" autocomplete="additional-name">
+      </div>
+
+      <div class="field">
+        <label>Company Name <span class="opt">(optional)</span></label>
+        <input type="text" id="regCompany" placeholder="Your Ltd / Sole Trader name">
+      </div>
+
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="regEmail" placeholder="you@company.com" autocomplete="email">
+        <div class="field-error" id="regEmailErr"></div>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="regPassword" placeholder="Min 8 chars, upper, lower, number, symbol"
+                 autocomplete="new-password" oninput="updateStrength(this.value)">
+          <button class="pw-toggle" type="button" onclick="togglePw('regPassword', this)">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="pw-strength" id="pwStrengthBars">
+          <div class="pw-strength-bar" id="psb1"></div>
+          <div class="pw-strength-bar" id="psb2"></div>
+          <div class="pw-strength-bar" id="psb3"></div>
+          <div class="pw-strength-bar" id="psb4"></div>
+        </div>
+        <div class="pw-strength-label" id="pwStrengthLabel"></div>
+        <div class="field-error" id="regPasswordErr"></div>
+      </div>
+
+      <div class="field">
+        <label>Confirm Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="regPassword2" placeholder="Repeat password" autocomplete="new-password">
+          <button class="pw-toggle" type="button" onclick="togglePw('regPassword2', this)">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="field-error" id="regPassword2Err"></div>
+      </div>
+
+      <div class="terms-row">
+        <input type="checkbox" id="regTerms">
+        <label for="regTerms">
+          I agree to the <a href="terms.html" target="_blank">Terms of Service</a>
+          and acknowledge the <a href="terms.html#privacy" target="_blank">Privacy Policy</a>
+        </label>
+      </div>
+      <div class="field-error" id="regTermsErr" style="margin-top:-12px;margin-bottom:14px"></div>
+
+      <button class="btn-primary-auth" id="registerBtn" onclick="submitRegister()">
+        <i class="fas fa-user-plus"></i> Create Free Account
+      </button>
+
+      <div class="divider-or">or</div>
+
+      <button class="btn-google" onclick="googleAuth()">
+        <svg class="google-icon" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Sign up with Google
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = window.FINTORI_API_BASE
+  ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
+  : window.location.port === '5500'
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : window.location.origin;
+
+// Pre-select tab based on URL param
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('tab') === 'register') switchTab('register');
+if (urlParams.get('error') === 'google_failed') {
+  document.getElementById('loginError').textContent =
+    'Google sign-in failed. Please try again or use email/password.';
+  document.getElementById('loginError').classList.add('show');
+}
+
+function switchTab(tab) {
+  document.getElementById('formLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('formRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+}
+
+function togglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const isText = input.type === 'text';
+  input.type = isText ? 'password' : 'text';
+  btn.querySelector('i').className = isText ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+
+function updateStrength(pw) {
+  let score = 0;
+  if (pw.length >= 8)  score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  const classes = ['', 'weak', 'fair', 'good', 'strong'];
+  document.getElementById('pwStrengthLabel').textContent = pw.length ? labels[score] : '';
+  for (let i = 1; i <= 4; i++) {
+    const bar = document.getElementById('psb' + i);
+    bar.className = 'pw-strength-bar' + (i <= score ? ' ' + classes[score] : '');
+  }
+}
+
+function fieldErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.toggle('show', !!msg);
+  const inputId = id.replace('Err', '');
+  const inp = document.getElementById(inputId);
+  if (inp) inp.classList.toggle('has-error', !!msg);
+}
+
+function clearErrors(prefix) {
+  ['Email','Password','Password2','FirstName','LastName','Terms'].forEach(f => {
+    fieldErr(prefix + f + 'Err', '');
+  });
+  const errBox = document.getElementById(prefix + 'Error');
+  if (errBox) { errBox.textContent = ''; errBox.classList.remove('show'); }
+}
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  if (loading) {
+    btn.dataset.orig = btn.innerHTML;
+    btn.innerHTML = '<span class="btn-spin"></span> Please wait…';
+  } else {
+    btn.innerHTML = btn.dataset.orig || btn.innerHTML;
+  }
+}
+
+async function submitLogin() {
+  clearErrors('login');
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  let ok = true;
+  if (!email)    { fieldErr('loginEmailErr', 'Email is required.');    ok = false; }
+  if (!password) { fieldErr('loginPasswordErr', 'Password is required.'); ok = false; }
+  if (!ok) return;
+
+  setLoading('loginBtn', true);
+  try {
+    const res  = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const errBox = document.getElementById('loginError');
+      errBox.textContent = data.error || 'Sign in failed. Please try again.';
+      errBox.classList.add('show');
+      return;
+    }
+    // Store auth token in sessionStorage for API calls
+    sessionStorage.setItem('fintori_auth_token', data.session_token);
+    sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    window.location.href = 'app.html';
+  } catch {
+    const errBox = document.getElementById('loginError');
+    errBox.textContent = 'Network error. Please try again.';
+    errBox.classList.add('show');
+  } finally {
+    setLoading('loginBtn', false);
+  }
+}
+
+async function submitRegister() {
+  clearErrors('register');
+  const first_name   = document.getElementById('regFirstName').value.trim();
+  const last_name    = document.getElementById('regLastName').value.trim();
+  const second_name  = document.getElementById('regSecondName').value.trim();
+  const company_name = document.getElementById('regCompany').value.trim();
+  const email        = document.getElementById('regEmail').value.trim();
+  const password     = document.getElementById('regPassword').value;
+  const password2    = document.getElementById('regPassword2').value;
+  const terms        = document.getElementById('regTerms').checked;
+
+  setLoading('registerBtn', true);
+  try {
+    const res  = await fetch(`${API}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ first_name, last_name, second_name, company_name,
+                             email, password, password2, terms_accepted: terms }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const errs = data.errors || {};
+      if (errs.email)      fieldErr('regEmailErr',      errs.email);
+      if (errs.password)   fieldErr('regPasswordErr',   errs.password);
+      if (errs.password2)  fieldErr('regPassword2Err',  errs.password2);
+      if (errs.first_name) fieldErr('regFirstNameErr',  errs.first_name);
+      if (errs.last_name)  fieldErr('regLastNameErr',   errs.last_name);
+      if (errs.terms)      fieldErr('regTermsErr',      errs.terms);
+      if (!Object.keys(errs).length) {
+        const errBox = document.getElementById('registerError');
+        errBox.textContent = data.error || 'Registration failed.';
+        errBox.classList.add('show');
+      }
+      return;
+    }
+    sessionStorage.setItem('fintori_auth_token', data.session_token);
+    sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    window.location.href = 'app.html';
+  } catch {
+    const errBox = document.getElementById('registerError');
+    errBox.textContent = 'Network error. Please try again.';
+    errBox.classList.add('show');
+  } finally {
+    setLoading('registerBtn', false);
+  }
+}
+
+function googleAuth() {
+  window.location.href = `${API}/auth/google`;
+}
+
+// Allow Enter key to submit forms
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const loginActive = document.getElementById('formLogin').classList.contains('active');
+  if (loginActive) submitLogin();
+  else submitRegister();
+});
+</script>
+</body>
+</html>

@@ -17,12 +17,29 @@
     <span class="logo-tag">Financial Analysis</span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-badge"><i class="fas fa-lock"></i> Free · Private</span>
+    <!-- Auth controls — populated by JS -->
+    <div id="authControls" style="display:flex;align-items:center;gap:8px"></div>
     <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
       <i class="fas fa-moon"></i>
     </button>
   </div>
 </header>
+
+<!-- Upgrade banner — shown to free users on first visit only -->
+<div id="upgradeBanner" style="display:none" class="upgrade-banner">
+  <div class="upgrade-banner-inner">
+    <i class="fas fa-star upgrade-banner-icon"></i>
+    <div class="upgrade-banner-copy">
+      <strong>You're on the Free plan.</strong>
+      Upgrade to Pro for 50 AI reports/month, unlimited PDF exports,
+      Business Health Score, and the What-If scenario tool — all for just £5/month.
+    </div>
+    <a href="pricing.html" class="upgrade-banner-cta">See Pro Features</a>
+    <button class="upgrade-banner-close" id="upgradeBannerClose" title="Dismiss">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+</div>
 
 <div class="prog-bar"><div class="prog-fill" id="prog"></div></div>
 
@@ -33,6 +50,29 @@
   <button class="sbtn" onclick="goTo(3)" id="sb3">3 · Business</button>
   <button class="sbtn" onclick="goTo(4)" id="sb4">4 · Results</button>
 </div>
+
+<!-- Auth guard overlay — shown while checking login status -->
+<div id="authOverlay" style="position:fixed;inset:0;background:var(--bg,#f5f7fb);
+  display:flex;align-items:center;justify-content:center;z-index:9999">
+  <div style="text-align:center">
+    <div style="width:36px;height:36px;border:3px solid #e2e6ef;border-top-color:#2563eb;
+      border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+    <p style="font-size:14px;color:var(--g400,#9ca3af)">Loading…</p>
+  </div>
+</div>
+
+<div class="app-layout">
+
+<!-- History sidebar (left) -->
+<aside class="history-sidebar" id="historySidebar">
+  <div class="history-sidebar-hdr">
+    <span><i class="fas fa-clock-rotate-left"></i> History</span>
+    <span id="historyPlanNote" class="history-plan-note"></span>
+  </div>
+  <div class="history-list" id="historyList">
+    <div class="history-empty">No calculations yet.<br>Your results will appear here.</div>
+  </div>
+</aside>
 
 <main>
 
@@ -291,6 +331,38 @@
     </div>
   </div>
 
+  <!-- BUSINESS HEALTH SCORE (Pro only) -->
+  <div id="healthScoreCard" class="card health-score-card" style="display:none">
+    <div class="card-hdr"><div class="cicon">🏆</div><h2>Business Health Score</h2>
+      <span class="pro-badge"><i class="fas fa-star"></i> Pro</span>
+    </div>
+    <div class="health-score-body">
+      <div class="health-score-dial-wrap">
+        <svg viewBox="0 0 120 70" class="health-score-svg">
+          <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="var(--border,#e2e6ef)" stroke-width="12" stroke-linecap="round"/>
+          <path id="healthScoreArc" d="M10 60 A50 50 0 0 1 110 60" fill="none"
+                stroke="#22c55e" stroke-width="12" stroke-linecap="round"
+                stroke-dasharray="157" stroke-dashoffset="157"/>
+        </svg>
+        <div class="health-score-number" id="healthScoreNumber">—</div>
+        <div class="health-score-label" id="healthScoreLabel">Calculating…</div>
+      </div>
+      <div class="health-score-breakdown" id="healthScoreBreakdown"></div>
+    </div>
+  </div>
+
+  <!-- WHAT-IF TOOL (Pro only, excluded from PDF) -->
+  <div id="whatIfCard" class="card what-if-card no-print" style="display:none">
+    <div class="card-hdr"><div class="cicon">🔮</div><h2>What-If Scenarios</h2>
+      <span class="pro-badge"><i class="fas fa-star"></i> Pro</span>
+    </div>
+    <div class="what-if-body">
+      <p class="what-if-desc">Adjust key variables to see how changes affect your results in real time.</p>
+      <div class="what-if-sliders" id="whatIfSliders"></div>
+      <div class="what-if-results" id="whatIfResults"></div>
+    </div>
+  </div>
+
   <!-- 2. KPI SUMMARY -->
   <div class="score-card" id="resultsSummary">
     <div class="summary-top">
@@ -447,6 +519,7 @@
 </div><!-- /results -->
 
 </main>
+</div><!-- /app-layout -->
 
 <footer>
   <div class="footer-content">

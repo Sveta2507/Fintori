@@ -2,3 +2,9 @@ flask>=2.3.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 playwright>=1.52.0
+flask-sqlalchemy
+flask-login
+flask-bcrypt
+authlib
+psycopg2-binary
+gunicorn

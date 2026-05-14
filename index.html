@@ -17,6 +17,7 @@
       <span class="logo-tag">Financial Intelligence for UK Businesses</span>
     </div>
   <div class="hdr-right">
+    <div id="indexAuthControls"></div>
     <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" type="button">
       <i class="fas fa-moon"></i>
     </button>
@@ -226,6 +227,37 @@
 
   htmlElement.setAttribute('data-theme', savedTheme);
   updateThemeIcon(savedTheme);
+
+  // Show Sign In / Sign Out based on session
+  (async () => {
+    const API = window.FINTORI_API_BASE
+      ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
+      : `${window.location.protocol}//${window.location.hostname}:5000`;
+    try {
+      const res  = await fetch(`${API}/auth/me`, {
+        credentials: 'include',
+        headers: { 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' },
+      });
+      const data = await res.json();
+      const ctrl = document.getElementById('indexAuthControls');
+      if (!ctrl) return;
+      if (data.user) {
+        ctrl.innerHTML = `
+          <span style="font-size:13px;font-weight:600;color:var(--text)">${data.user.first_name}</span>
+          <a href="app.html" style="margin-left:8px;padding:7px 14px;background:linear-gradient(135deg,#2563eb,#7c3aed);
+            color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
+            Open App</a>`;
+      } else {
+        ctrl.innerHTML = `
+          <a href="auth.html" style="padding:7px 14px;border:1.5px solid var(--border,#e2e6ef);
+            border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;margin-right:6px">
+            Sign In</a>
+          <a href="auth.html?tab=register" style="padding:7px 14px;background:linear-gradient(135deg,#2563eb,#7c3aed);
+            color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
+            Get Started</a>`;
+      }
+    } catch {}
+  })();
 
   themeToggle.addEventListener('click', () => {
     const currentTheme = htmlElement.getAttribute('data-theme');
