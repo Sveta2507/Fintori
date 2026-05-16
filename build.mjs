@@ -23,7 +23,17 @@ const SRC  = join(ROOT, 'app.js');
 const DIST = join(ROOT, 'dist');
 const OUT  = join(DIST, 'app.js');
 
-const STATIC_FILES = ['app.html', 'index.html', 'app.css', 'index.css'];
+const STATIC_FILES = [
+  'app.html',
+  'index.html',
+  'auth.html',
+  'pricing.html',
+  'payment.html',
+  'settings.html',
+  'terms.html',
+  'app.css',
+  'index.css',
+];
 
 // Strong obfuscation without the options that crash on large files.
 // See comments for why each option is on or off.

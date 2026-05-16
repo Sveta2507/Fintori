@@ -444,7 +444,7 @@
 <script>
 const API = window.FINTORI_API_BASE
   ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
-  : window.location.port === '5500'
+  : ['5500', '8000'].includes(window.location.port)
     ? `${window.location.protocol}//${window.location.hostname}:5000`
     : window.location.origin;
 

@@ -3,25 +3,407 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fintori — Payment</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<title>Fintori - Secure Payment</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="css/style.css">
 <style>
-  body { font-family: 'Inter', sans-serif; background: var(--bg,#f5f7fb); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .card { background: var(--surface,#fff); border: 1px solid var(--border,#e2e6ef); border-radius: 16px; padding: 48px 40px; max-width: 420px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
-  .icon { font-size: 40px; margin-bottom: 16px; color: #2563eb; }
-  h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
-  p  { font-size: 14px; color: var(--g600,#4b5563); line-height: 1.6; margin-bottom: 24px; }
-  a  { display: inline-block; padding: 12px 28px; background: linear-gradient(135deg,#2563eb,#7c3aed); color: #fff; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 14px; }
+  :root {
+    --base: #1f4db8;
+    --ink: #12203a;
+    --muted: #717580;
+    --line: #e5e7eb;
+    --bg: #f7f7f7;
+    --panel: #ffffff;
+    --ok: #2ebb79;
+    --warn: #f59e0b;
+    --danger: #dc3131;
+    --font: "Inter", sans-serif;
+    --alt: "Plus Jakarta Sans", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    min-height: 74px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 28px;
+    background: var(--bg);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+  .brand {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+  }
+  .logo-name {
+    font-family: var(--alt);
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .logo-tag {
+    font-size: 10px;
+    color: rgba(18, 32, 58, 0.68);
+    font-weight: 600;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1.5px solid rgba(18, 32, 58, 0.14);
+    background: #fff;
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn-primary {
+    border-color: transparent;
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+  }
+  .btn:disabled {
+    opacity: .65;
+    cursor: not-allowed;
+  }
+  main {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 46px 24px 64px;
+  }
+  .payment-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) 380px;
+    gap: 26px;
+    align-items: start;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid rgba(31, 77, 184, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 14px 34px rgba(31, 77, 184, 0.08);
+  }
+  .checkout-panel {
+    padding: 34px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: #eef4ff;
+    color: var(--base);
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: var(--alt);
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+  .lead {
+    max-width: 680px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.75;
+    margin-bottom: 26px;
+  }
+  .price-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  .price {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .price span {
+    font-size: 15px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .feature {
+    display: flex;
+    gap: 10px;
+    padding: 13px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfdff;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .feature i {
+    margin-top: 2px;
+    color: var(--ok);
+  }
+  .notice {
+    display: none;
+    margin-top: 18px;
+    padding: 13px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .notice.show { display: block; }
+  .notice.ok { background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0; }
+  .notice.warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+  .notice.bad { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .summary {
+    overflow: hidden;
+  }
+  .summary-head {
+    padding: 22px;
+    background: linear-gradient(135deg, #0b162c, #13233f);
+    color: #fff;
+  }
+  .summary-head h2 {
+    font-size: 19px;
+    margin-bottom: 6px;
+  }
+  .summary-head p {
+    color: rgba(255,255,255,.72);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .summary-body {
+    padding: 20px 22px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row strong { font-weight: 800; }
+  .secure-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .secure-list div {
+    display: flex;
+    gap: 9px;
+  }
+  .secure-list i {
+    color: var(--base);
+    margin-top: 2px;
+  }
+  @media (max-width: 860px) {
+    header { padding: 14px 18px; }
+    .payment-layout { grid-template-columns: 1fr; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .checkout-panel { padding: 24px; }
+    .header-actions { flex-wrap: wrap; justify-content: flex-end; }
+  }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="icon"><i class="fas fa-credit-card"></i></div>
-  <h2>Payment Coming Soon</h2>
-  <p>Secure payment processing via Stripe will be available here shortly. We'll notify you by email as soon as Pro subscriptions go live.</p>
-  <a href="app.html"><i class="fas fa-arrow-left"></i> Back to Calculator</a>
-</div>
+<header>
+  <a class="brand" href="index.html">
+    <span class="logo-name">Fintori</span>
+    <span class="logo-tag">Secure Stripe Checkout</span>
+  </a>
+  <div class="header-actions">
+    <a class="btn" href="pricing.html"><i class="fas fa-tags"></i> Pricing</a>
+    <a class="btn" href="app.html"><i class="fas fa-arrow-left"></i> Back to App</a>
+  </div>
+</header>
+
+<main>
+  <div class="payment-layout">
+    <section class="panel checkout-panel">
+      <div class="eyebrow"><i class="fas fa-lock"></i> Secure payment by Stripe</div>
+      <h1>Upgrade to Fintori Pro</h1>
+      <p class="lead">Complete your subscription using Stripe Checkout. You will be redirected to Stripe to enter payment details, then returned to Fintori when your subscription is active.</p>
+      <div class="price-line">
+        <div class="price">£5</div>
+        <span>/ month, cancel anytime</span>
+      </div>
+      <div class="feature-grid">
+        <div class="feature"><i class="fas fa-check-circle"></i><span>50 AI reports every month</span></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><span>Unlimited PDF exports</span></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><span>Full calculation history</span></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><span>Business Health Score and What-If tools</span></div>
+      </div>
+      <button class="btn btn-primary" id="checkoutBtn" type="button">
+        <i class="fas fa-credit-card"></i> Continue to Stripe Checkout
+      </button>
+      <div class="notice" id="paymentNotice"></div>
+    </section>
+
+    <aside class="panel summary">
+      <div class="summary-head">
+        <h2>Order summary</h2>
+        <p>Fintori Pro subscription for your account.</p>
+      </div>
+      <div class="summary-body">
+        <div class="row"><span>Plan</span><strong>Fintori Pro</strong></div>
+        <div class="row"><span>Billing</span><strong>Monthly</strong></div>
+        <div class="row"><span>Due today</span><strong>£5.00</strong></div>
+        <div class="row"><span>Renewal</span><strong>£5.00/month</strong></div>
+        <div class="secure-list">
+          <div><i class="fas fa-shield-halved"></i><span>Card details are entered on Stripe, not stored by Fintori.</span></div>
+          <div><i class="fas fa-rotate-left"></i><span>You can cancel anytime from your Stripe billing account when portal support is enabled.</span></div>
+          <div><i class="fas fa-receipt"></i><span>Stripe sends receipts and handles payment authentication where required.</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+const API = window.FINTORI_API_BASE
+  ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
+  : ['5500', '8000'].includes(window.location.port)
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : window.location.origin;
+
+const notice = document.getElementById('paymentNotice');
+const checkoutBtn = document.getElementById('checkoutBtn');
+
+function authHeaders(extra = {}) {
+  return {
+    ...extra,
+    'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '',
+  };
+}
+
+function showNotice(message, tone = 'warn') {
+  notice.textContent = message;
+  notice.className = `notice show ${tone}`;
+}
+
+async function ensureUser() {
+  try {
+    const res = await fetch(`${API}/auth/me`, {
+      credentials: 'include',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!data.user) {
+      window.location.href = 'auth.html?tab=register';
+      return null;
+    }
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    if (data.user.plan === 'paid') {
+      showNotice('Your account is already on Pro. You can return to the app.', 'ok');
+      checkoutBtn.disabled = true;
+    }
+    return data.user;
+  } catch {
+    showNotice('Could not verify your account. Make sure the backend is running and try again.', 'bad');
+    return null;
+  }
+}
+
+async function confirmReturnedCheckout(sessionId) {
+  showNotice('Confirming your Stripe payment...', 'warn');
+  try {
+    const res = await fetch(`${API}/subscription/confirm`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showNotice(data.message || data.error || 'Stripe payment could not be confirmed yet.', 'bad');
+      return;
+    }
+    if (data.ok) {
+      if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+      sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+      showNotice('Payment confirmed. Your Pro plan is active.', 'ok');
+      checkoutBtn.textContent = 'Open Fintori Pro';
+      checkoutBtn.onclick = () => window.location.href = 'app.html';
+    } else {
+      showNotice(`Payment status: ${data.status}. If you just paid, refresh in a moment.`, 'warn');
+    }
+  } catch {
+    showNotice('Could not confirm payment. Please try refreshing this page.', 'bad');
+  }
+}
+
+async function startCheckout() {
+  checkoutBtn.disabled = true;
+  checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating secure checkout...';
+  try {
+    const res = await fetch(`${API}/subscription/upgrade`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ plan: 'pro_monthly' }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'stripe_not_configured') {
+        showNotice(`Stripe is not configured yet. Missing: ${(data.missing || []).join(', ')}. Add these to .env and restart the backend.`, 'bad');
+      } else {
+        showNotice(data.message || data.error || 'Could not start Stripe Checkout.', 'bad');
+      }
+      return;
+    }
+    window.location.href = data.redirect_url;
+  } catch {
+    showNotice('Network error while creating Checkout. Make sure the backend is running.', 'bad');
+  } finally {
+    checkoutBtn.disabled = false;
+    checkoutBtn.innerHTML = '<i class="fas fa-credit-card"></i> Continue to Stripe Checkout';
+  }
+}
+
+checkoutBtn.addEventListener('click', startCheckout);
+
+(async () => {
+  await ensureUser();
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('status') === 'cancelled') {
+    showNotice('Checkout was cancelled. No payment was taken.', 'warn');
+  }
+  const sessionId = params.get('session_id');
+  if (params.get('status') === 'success' && sessionId) {
+    await confirmReturnedCheckout(sessionId);
+  }
+})();
+</script>
 </body>
 </html>

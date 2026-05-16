@@ -4,7 +4,7 @@ let _currentUser = null;
 
 function getApiBase() {
   if (window.FINTORI_API_BASE) return String(window.FINTORI_API_BASE).replace(/\/+$/, '');
-  if (window.location.port === '5500')
+  if (['5500', '8000'].includes(window.location.port))
     return `${window.location.protocol}//${window.location.hostname}:5000`;
   return window.location.origin.replace(/\/+$/, '');
 }
@@ -62,12 +62,22 @@ function renderAuthControls() {
   if (!wrap || !_currentUser) return;
 
   const isPaid = _currentUser.plan === 'paid';
+  const accountName = document.getElementById('accountSidebarName');
+  if (accountName) {
+    accountName.textContent = `${_currentUser.first_name || ''} ${_currentUser.last_name || ''}`.trim() || _currentUser.email || 'Your account';
+  }
+
   wrap.innerHTML = `
-    <span class="hdr-user-name">${_currentUser.first_name}</span>
     ${!isPaid ? `<a href="pricing.html" class="hdr-upgrade-btn">
-      <i class="fas fa-star"></i> Upgrade</a>` : ''}
-    <button class="hdr-logout-btn" onclick="logoutUser()" title="Sign out">
-      <i class="fas fa-right-from-bracket"></i>
+      <i class="fas fa-gem"></i> Upgrade</a>` : ''}
+    <button class="hdr-user-chip" type="button" onclick="toggleAccountSidebar()" aria-label="Open account menu" aria-controls="accountSidebar" aria-expanded="false" title="Signed in as ${_currentUser.first_name}">
+      <span class="hdr-user-avatar" aria-hidden="true">
+        <i class="fas fa-user"></i>
+      </span>
+      <span class="hdr-user-copy">
+        <span class="hdr-user-kicker">Welcome back,</span>
+        <span class="hdr-user-name">${_currentUser.first_name}</span>
+      </span>
     </button>`;
 }
 
@@ -124,11 +134,57 @@ function renderProFeatures() {
 }
 
 // ── HISTORY SIDEBAR ───────────────────────────────────────────────────
+function setHistorySidebarOpen(open) {
+  const sidebar = document.getElementById('historySidebar');
+  const backdrop = document.getElementById('historyBackdrop');
+  const btn = document.getElementById('historyToggleBtn');
+  if (!sidebar) return;
+  sidebar.classList.toggle('is-open', open);
+  if (backdrop) backdrop.classList.toggle('is-open', open);
+  if (btn) btn.setAttribute('aria-expanded', String(open));
+}
+
+function toggleHistorySidebar() {
+  const sidebar = document.getElementById('historySidebar');
+  setHistorySidebarOpen(!sidebar?.classList.contains('is-open'));
+}
+
+function closeHistorySidebar() {
+  setHistorySidebarOpen(false);
+}
+
+function setAccountSidebarOpen(open) {
+  const sidebar = document.getElementById('accountSidebar');
+  const backdrop = document.getElementById('accountBackdrop');
+  const btn = document.querySelector('.hdr-user-chip');
+  if (!sidebar) return;
+  sidebar.classList.toggle('is-open', open);
+  if (backdrop) backdrop.classList.toggle('is-open', open);
+  if (btn) btn.setAttribute('aria-expanded', String(open));
+}
+
+function toggleAccountSidebar() {
+  const sidebar = document.getElementById('accountSidebar');
+  setAccountSidebarOpen(!sidebar?.classList.contains('is-open'));
+}
+
+function closeAccountSidebar() {
+  setAccountSidebarOpen(false);
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeHistorySidebar();
+    closeAccountSidebar();
+  }
+});
+
 async function loadHistory() {
   if (!_currentUser) return;
   try {
     const res  = await fetch(`${getApiBase()}/history`, {
       credentials: 'include',
+      headers: { 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' },
     });
     const data = await res.json();
     renderHistorySidebar(data.history || []);
@@ -164,6 +220,7 @@ function renderHistorySidebar(history) {
 
 function loadHistoryItem(summary) {
   if (!summary) return;
+  closeHistorySidebar();
 
   alert(
     `Calculation from history:\n` +
@@ -179,6 +236,7 @@ async function deleteHistoryItem(id, btn) {
     await fetch(`${getApiBase()}/history/${id}`, {
       method: 'DELETE',
       credentials: 'include',
+      headers: { 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' },
     });
     btn.closest('.history-item').remove();
     // Show empty state if no items left
@@ -195,7 +253,10 @@ async function saveCalcToHistory(summary) {
     await fetch(`${getApiBase()}/history`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '',
+      },
       body: JSON.stringify({ summary }),
     });
     loadHistory();
@@ -1225,7 +1286,7 @@ function getBackendBaseUrl() {
     return String(window.FINTORI_API_BASE).replace(/\/+$/, '');
   }
   const { protocol, hostname, port, origin } = window.location;
-  if (port === '5500') {
+  if (['5500', '8000'].includes(port)) {
     return `${protocol}//${hostname}:5000`;
   }
   return origin.replace(/\/+$/, '');
@@ -1497,7 +1558,7 @@ function preparePdfClone(node){
   if(!node) return null;
 
   node.querySelectorAll('script').forEach(el => el.remove());
-  node.querySelectorAll('.theme-toggle, .hdr-badge, .sbtn-home, .action-row, .toast-stack, .verdict-ai, .verdict-ai-trigger').forEach(el => el.remove());
+  node.querySelectorAll('.theme-toggle, .switch, .hdr-badge, .sbtn-home, .action-row, .toast-stack, .verdict-ai, .verdict-ai-trigger').forEach(el => el.remove());
   node.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
 
   return node;

@@ -8,3 +8,4 @@ flask-bcrypt
 authlib
 psycopg2-binary
 gunicorn
+stripe>=10.0.0

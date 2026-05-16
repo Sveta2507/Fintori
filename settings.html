@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fintori - Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  :root {
+    --base: #1f4db8;
+    --ink: #12203a;
+    --muted: #717580;
+    --line: #e5e7eb;
+    --bg: #f7f7f7;
+    --panel: #ffffff;
+    --danger: #dc3131;
+    --ok: #2ebb79;
+    --font: "Inter", sans-serif;
+    --alt: "Plus Jakarta Sans", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    min-height: 74px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 28px;
+    background: var(--bg);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .brand {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+  }
+  .logo-name {
+    font-family: var(--alt);
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .logo-tag {
+    font-size: 10px;
+    color: rgba(18, 32, 58, 0.68);
+    font-weight: 600;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .btn {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1.5px solid rgba(18, 32, 58, 0.14);
+    background: #fff;
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn-primary {
+    border-color: transparent;
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  }
+  .btn-danger {
+    color: var(--danger);
+  }
+  main {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 34px 24px 56px;
+  }
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .settings-nav,
+  .panel {
+    background: var(--panel);
+    border: 1px solid rgba(31, 77, 184, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 14px 34px rgba(31, 77, 184, 0.08);
+  }
+  .settings-nav {
+    position: sticky;
+    top: 98px;
+    padding: 10px;
+  }
+  .nav-link {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 800;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .nav-link:hover,
+  .nav-link.active {
+    background: #eef4ff;
+    color: var(--base);
+  }
+  .nav-link i { width: 18px; text-align: center; }
+  .content-stack {
+    display: grid;
+    gap: 18px;
+  }
+  .panel {
+    padding: 24px;
+  }
+  .panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-family: var(--alt);
+    font-size: 30px;
+    line-height: 1.15;
+  }
+  h2 {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .subtle {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .avatar {
+    width: 58px;
+    height: 58px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #a3a3a3;
+    color: #f5f5f5;
+    font-size: 27px;
+    flex: 0 0 58px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #eef4ff;
+    color: var(--base);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: capitalize;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .field {
+    display: grid;
+    gap: 7px;
+  }
+  .field.full { grid-column: 1 / -1; }
+  label {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  input,
+  select {
+    min-height: 44px;
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font: 600 14px var(--font);
+    padding: 0 12px;
+  }
+  input:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--base);
+    box-shadow: 0 0 0 3px rgba(31, 77, 184, 0.12);
+  }
+  input[readonly] {
+    color: var(--muted);
+    background: #f8fafc;
+  }
+  .section-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+  }
+  .setting-row:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .toggle {
+    position: relative;
+    width: 52px;
+    height: 30px;
+    flex: 0 0 52px;
+  }
+  .toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .toggle span {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: #cbd5e1;
+    cursor: pointer;
+  }
+  .toggle span::before {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    left: 4px;
+    top: 4px;
+    border-radius: 50%;
+    background: #fff;
+    transition: .25s;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
+  }
+  .toggle input:checked + span {
+    background: #2196f3;
+  }
+  .toggle input:checked + span::before {
+    transform: translateX(22px);
+  }
+  .usage-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .usage-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    background: #fbfdff;
+  }
+  .usage-num {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--base);
+  }
+  .usage-label {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .status {
+    min-height: 24px;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .status.ok { color: var(--ok); }
+  .status.bad { color: var(--danger); }
+  .hidden { display: none; }
+  @media (max-width: 820px) {
+    header { padding: 14px 18px; }
+    .settings-layout { grid-template-columns: 1fr; }
+    .settings-nav { position: static; display: flex; overflow-x: auto; }
+    .nav-link { flex: 0 0 auto; }
+    .form-grid,
+    .usage-grid { grid-template-columns: 1fr; }
+    .panel-head { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">
+    <span class="logo-name">Fintori</span>
+    <span class="logo-tag">Financial Analysis</span>
+  </a>
+  <div class="header-actions">
+    <a class="btn" href="pricing.html"><i class="fas fa-tags"></i> Pricing</a>
+    <a class="btn btn-primary" href="app.html"><i class="fas fa-arrow-left"></i> Back to App</a>
+  </div>
+</header>
+
+<main>
+  <div class="settings-layout">
+    <nav class="settings-nav" aria-label="Settings sections">
+      <button class="nav-link active" data-target="profile"><i class="fas fa-user"></i> Profile</button>
+      <button class="nav-link" data-target="preferences"><i class="fas fa-sliders"></i> Preferences</button>
+      <button class="nav-link" data-target="security"><i class="fas fa-shield-halved"></i> Security</button>
+      <button class="nav-link" data-target="billing"><i class="fas fa-credit-card"></i> Plan & Billing</button>
+    </nav>
+
+    <div class="content-stack">
+      <section class="panel" id="profile">
+        <div class="panel-head">
+          <div class="profile-summary">
+            <span class="avatar"><i class="fas fa-user"></i></span>
+            <div>
+              <h1 id="profileTitle">Account Settings</h1>
+              <p class="subtle" id="profileSubtitle">Manage your Fintori account details.</p>
+            </div>
+          </div>
+          <span class="pill" id="planPill">free</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="firstName">First name</label>
+            <input id="firstName" autocomplete="given-name">
+          </div>
+          <div class="field">
+            <label for="lastName">Last name</label>
+            <input id="lastName" autocomplete="family-name">
+          </div>
+          <div class="field full">
+            <label for="secondName">Second name</label>
+            <input id="secondName" autocomplete="additional-name">
+          </div>
+          <div class="field full">
+            <label for="companyName">Company name</label>
+            <input id="companyName" autocomplete="organization">
+          </div>
+          <div class="field full">
+            <label for="email">Email address</label>
+            <input id="email" type="email" readonly>
+          </div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-primary" id="saveProfileBtn" type="button">Save Profile</button>
+        </div>
+        <div class="status" id="profileStatus"></div>
+      </section>
+
+      <section class="panel hidden" id="preferences">
+        <div class="panel-head">
+          <div>
+            <h2>Preferences</h2>
+            <p class="subtle">These settings are saved in this browser for your local Fintori workspace.</p>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <label>Dark mode</label>
+            <p class="subtle">Use the darker interface across pages that support themes.</p>
+          </div>
+          <label class="toggle"><input id="darkModePref" type="checkbox"><span></span></label>
+        </div>
+        <div class="setting-row">
+          <div>
+            <label>Remember completed steps</label>
+            <p class="subtle">Keep your app step progress available in this browser.</p>
+          </div>
+          <label class="toggle"><input id="rememberStepsPref" type="checkbox"><span></span></label>
+        </div>
+        <div class="setting-row">
+          <div>
+            <label>Currency display</label>
+            <p class="subtle">Fintori currently uses GBP for UK business analysis.</p>
+          </div>
+          <select id="currencyPref" aria-label="Currency">
+            <option value="GBP">GBP - Pound sterling</option>
+          </select>
+        </div>
+        <div class="status ok" id="prefStatus"></div>
+      </section>
+
+      <section class="panel hidden" id="security">
+        <div class="panel-head">
+          <div>
+            <h2>Security</h2>
+            <p class="subtle">Change your password and manage the current browser session.</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field full">
+            <label for="currentPassword">Current password</label>
+            <input id="currentPassword" type="password" autocomplete="current-password">
+          </div>
+          <div class="field">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" type="password" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="newPassword2">Confirm new password</label>
+            <input id="newPassword2" type="password" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="section-actions">
+          <button class="btn" id="clearSessionBtn" type="button">Clear Local Session</button>
+          <button class="btn btn-primary" id="passwordBtn" type="button">Change Password</button>
+        </div>
+        <div class="status" id="securityStatus"></div>
+
+        <div class="setting-row" style="margin-top:22px">
+          <div>
+            <label>Delete account request</label>
+            <p class="subtle">Ask Fintori to remove your account and saved calculation history.</p>
+          </div>
+          <button class="btn btn-danger" id="deleteRequestBtn" type="button">Request Delete</button>
+        </div>
+        <div class="status" id="deleteStatus"></div>
+      </section>
+
+      <section class="panel hidden" id="billing">
+        <div class="panel-head">
+          <div>
+            <h2>Plan & Billing</h2>
+            <p class="subtle">Review your current allowance and subscription links.</p>
+          </div>
+          <a class="btn btn-primary" href="pricing.html">View Plans</a>
+        </div>
+        <div class="usage-grid">
+          <div class="usage-card">
+            <div class="usage-num" id="planName">Free</div>
+            <div class="usage-label">Current plan</div>
+          </div>
+          <div class="usage-card">
+            <div class="usage-num" id="aiRemaining">0</div>
+            <div class="usage-label">AI reports remaining</div>
+          </div>
+          <div class="usage-card">
+            <div class="usage-num" id="pdfRemaining">0</div>
+            <div class="usage-label">PDF exports remaining</div>
+          </div>
+        </div>
+        <div class="section-actions">
+          <a class="btn" href="payment.html">Payment</a>
+          <a class="btn" href="terms.html">Terms</a>
+          <button class="btn btn-danger" id="signOutBtn" type="button">Sign out</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = window.FINTORI_API_BASE
+  ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
+  : ['5500', '8000'].includes(window.location.port)
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : window.location.origin;
+
+let currentUser = null;
+
+function authHeaders(extra = {}) {
+  return {
+    ...extra,
+    'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '',
+  };
+}
+
+function setStatus(id, message, ok = true) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = message || '';
+  el.className = `status ${message ? (ok ? 'ok' : 'bad') : ''}`;
+}
+
+function populateUser(user) {
+  currentUser = user;
+  document.getElementById('firstName').value = user.first_name || '';
+  document.getElementById('lastName').value = user.last_name || '';
+  document.getElementById('secondName').value = user.second_name || '';
+  document.getElementById('companyName').value = user.company_name || '';
+  document.getElementById('email').value = user.email || '';
+  document.getElementById('profileTitle').textContent = `${user.first_name || 'Your'} ${user.last_name || ''}`.trim();
+  document.getElementById('profileSubtitle').textContent = user.email || 'Manage your Fintori account details.';
+  document.getElementById('planPill').textContent = user.plan || 'free';
+  document.getElementById('planName').textContent = user.plan === 'paid' ? 'Pro' : 'Free';
+  document.getElementById('aiRemaining').textContent = user.ai_remaining ?? 0;
+  document.getElementById('pdfRemaining').textContent = user.plan === 'paid' ? 'Unlimited' : (user.pdf_remaining ?? 0);
+  sessionStorage.setItem('fintori_user', JSON.stringify(user));
+}
+
+async function loadUser() {
+  try {
+    const res = await fetch(`${API}/auth/me`, {
+      credentials: 'include',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!data.user) {
+      window.location.href = 'auth.html';
+      return;
+    }
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    populateUser(data.user);
+  } catch {
+    const cached = sessionStorage.getItem('fintori_user');
+    if (cached) populateUser(JSON.parse(cached));
+    else window.location.href = 'auth.html';
+  }
+}
+
+async function saveProfile() {
+  setStatus('profileStatus', '');
+  const btn = document.getElementById('saveProfileBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/auth/profile`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        first_name: document.getElementById('firstName').value.trim(),
+        last_name: document.getElementById('lastName').value.trim(),
+        second_name: document.getElementById('secondName').value.trim(),
+        company_name: document.getElementById('companyName').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const message = data.error || Object.values(data.errors || {})[0] || 'Profile could not be saved.';
+      setStatus('profileStatus', message, false);
+      return;
+    }
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    populateUser(data.user);
+    setStatus('profileStatus', 'Profile updated.');
+  } catch {
+    setStatus('profileStatus', 'Network error. Please try again.', false);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function changePassword() {
+  setStatus('securityStatus', '');
+  const btn = document.getElementById('passwordBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/auth/password`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        current_password: document.getElementById('currentPassword').value,
+        new_password: document.getElementById('newPassword').value,
+        new_password2: document.getElementById('newPassword2').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const message = data.error || Object.values(data.errors || {})[0] || 'Password could not be changed.';
+      setStatus('securityStatus', message, false);
+      return;
+    }
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    ['currentPassword', 'newPassword', 'newPassword2'].forEach(id => document.getElementById(id).value = '');
+    setStatus('securityStatus', 'Password updated.');
+  } catch {
+    setStatus('securityStatus', 'Network error. Please try again.', false);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function signOut() {
+  try {
+    await fetch(`${API}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders(),
+    });
+  } catch {}
+  sessionStorage.removeItem('fintori_auth_token');
+  sessionStorage.removeItem('fintori_user');
+  window.location.href = 'auth.html';
+}
+
+async function requestDeleteAccount() {
+  setStatus('deleteStatus', '');
+  const confirmed = confirm('Request account deletion? This asks Fintori to remove your account and saved history.');
+  if (!confirmed) return;
+
+  const btn = document.getElementById('deleteRequestBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/auth/delete-request`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ requested: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus('deleteStatus', data.error || 'Deletion request could not be sent.', false);
+      return;
+    }
+    setStatus('deleteStatus', data.message || 'Account deletion request received.');
+  } catch {
+    setStatus('deleteStatus', 'Network error. Please try again.', false);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.querySelectorAll('.nav-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-link').forEach(item => item.classList.toggle('active', item === btn));
+    document.querySelectorAll('.panel').forEach(panel => panel.classList.toggle('hidden', panel.id !== btn.dataset.target));
+  });
+});
+
+document.getElementById('saveProfileBtn').addEventListener('click', saveProfile);
+document.getElementById('passwordBtn').addEventListener('click', changePassword);
+document.getElementById('signOutBtn').addEventListener('click', signOut);
+document.getElementById('deleteRequestBtn').addEventListener('click', requestDeleteAccount);
+document.getElementById('clearSessionBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('fintori_auth_token');
+  sessionStorage.removeItem('fintori_user');
+  setStatus('securityStatus', 'Local browser session cleared. Sign in again to continue.');
+});
+
+const darkPref = document.getElementById('darkModePref');
+darkPref.checked = localStorage.getItem('theme') === 'dark';
+darkPref.addEventListener('change', () => {
+  localStorage.setItem('theme', darkPref.checked ? 'dark' : 'light');
+  setStatus('prefStatus', 'Preference saved.');
+});
+
+const rememberPref = document.getElementById('rememberStepsPref');
+rememberPref.checked = localStorage.getItem('fintori_remember_steps') !== 'false';
+rememberPref.addEventListener('change', () => {
+  localStorage.setItem('fintori_remember_steps', rememberPref.checked ? 'true' : 'false');
+  setStatus('prefStatus', 'Preference saved.');
+});
+
+document.getElementById('currencyPref').addEventListener('change', () => {
+  localStorage.setItem('fintori_currency', 'GBP');
+  setStatus('prefStatus', 'Preference saved.');
+});
+
+loadUser();
+</script>
+</body>
+</html>

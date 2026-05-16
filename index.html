@@ -8,6 +8,79 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="index.css">
+<style>
+  header .switch {
+    position: relative !important;
+    display: inline-block !important;
+    width: 60px !important;
+    height: 34px !important;
+    flex: 0 0 60px !important;
+  }
+
+  header .switch #themeToggle {
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    position: absolute !important;
+  }
+
+  header .switch .slider {
+    position: absolute !important;
+    cursor: pointer !important;
+    inset: 0 !important;
+    background-color: #ccc !important;
+    transition: .4s !important;
+  }
+
+  header .switch .slider:before {
+    position: absolute !important;
+    content: "" !important;
+    height: 26px !important;
+    width: 26px !important;
+    left: 4px !important;
+    bottom: 4px !important;
+    background-color: white !important;
+    transition: .4s !important;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.24) !important;
+  }
+
+  header .switch .toggle-icon {
+    position: absolute !important;
+    left: 4px !important;
+    bottom: 4px !important;
+    z-index: 1 !important;
+    width: 26px !important;
+    height: 26px !important;
+    display: grid !important;
+    place-items: center !important;
+    color: #f59e0b !important;
+    font-size: 13px !important;
+    pointer-events: none !important;
+    transition: .4s !important;
+  }
+
+  header .switch #themeToggle:checked + .slider {
+    background-color: #2196F3 !important;
+  }
+
+  header .switch #themeToggle:checked + .slider:before {
+    transform: translateX(26px) !important;
+  }
+
+  header .switch #themeToggle:checked ~ .toggle-icon {
+    color: #1e3a8a !important;
+    transform: translateX(26px) !important;
+  }
+
+  header .switch .slider.round {
+    border-radius: 34px !important;
+  }
+
+  header .switch .slider.round:before {
+    border-radius: 50% !important;
+  }
+</style>
 </head>
 <body>
 
@@ -15,14 +88,55 @@
     <div class="logo-section">
       <span class="logo-name">Fintori</span>
       <span class="logo-tag">Financial Intelligence for UK Businesses</span>
-    </div>
+  </div>
   <div class="hdr-right">
-    <div id="indexAuthControls"></div>
-    <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" type="button">
-      <i class="fas fa-moon"></i>
-    </button>
+    <div id="indexAuthControls" class="index-auth-controls"></div>
   </div>
 </header>
+
+<div id="upgradeBanner" style="display:none" class="upgrade-banner">
+  <div class="upgrade-banner-inner">
+    <i class="fas fa-star upgrade-banner-icon"></i>
+    <div class="upgrade-banner-copy">
+      <strong>You're on the Free plan.</strong>
+      Upgrade to Pro for 50 AI reports/month, unlimited PDF exports,
+      Business Health Score, and the What-If scenario tool — all for just £5/month.
+    </div>
+    <a href="pricing.html" class="upgrade-banner-cta">See Pro Features</a>
+    <button class="upgrade-banner-close" id="upgradeBannerClose" title="Dismiss">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+</div>
+
+<div class="account-backdrop" id="accountBackdrop" onclick="closeAccountSidebar()"></div>
+<aside class="account-sidebar" id="accountSidebar">
+  <div class="account-sidebar-head">
+    <span class="account-avatar" aria-hidden="true"><i class="fas fa-user"></i></span>
+    <div>
+      <div class="account-kicker">Welcome back</div>
+      <div class="account-name" id="accountSidebarName">Your account</div>
+    </div>
+  </div>
+  <nav class="account-nav" aria-label="Account navigation">
+    <div class="account-theme-row">
+      <span><i class="fas fa-circle-half-stroke"></i> Theme</span>
+      <label class="switch" title="Toggle dark mode" aria-label="Toggle dark mode">
+        <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
+        <span class="slider round" aria-hidden="true"></span>
+        <i class="fas fa-sun toggle-icon" aria-hidden="true"></i>
+      </label>
+    </div>
+    <a href="settings.html"><i class="fas fa-gear"></i><span>Settings</span></a>
+    <a href="pricing.html"><i class="fas fa-tags"></i><span>Pricing & Plans</span></a>
+    <a href="payment.html"><i class="fas fa-credit-card"></i><span>Payment</span></a>
+    <a href="terms.html"><i class="fas fa-file-contract"></i><span>Terms</span></a>
+    <a href="app.html"><i class="fas fa-calculator"></i><span>Open App</span></a>
+  </nav>
+  <button class="account-logout" type="button" onclick="logoutUser()">
+    <i class="fas fa-right-from-bracket"></i><span>Sign out</span>
+  </button>
+</aside>
 
 <main>
   <section class="hero">
@@ -229,6 +343,42 @@
   updateThemeIcon(savedTheme);
 
   // Show Sign In / Sign Out based on session
+  let currentUser = null;
+  function setAccountSidebarOpen(open) {
+    const sidebar = document.getElementById('accountSidebar');
+    const backdrop = document.getElementById('accountBackdrop');
+    const btn = document.querySelector('.index-user-chip');
+    if (!sidebar) return;
+    sidebar.classList.toggle('is-open', open);
+    if (backdrop) backdrop.classList.toggle('is-open', open);
+    if (btn) btn.setAttribute('aria-expanded', String(open));
+  }
+  function toggleAccountSidebar() {
+    const sidebar = document.getElementById('accountSidebar');
+    setAccountSidebarOpen(!sidebar?.classList.contains('is-open'));
+  }
+  function closeAccountSidebar() {
+    setAccountSidebarOpen(false);
+  }
+  async function logoutUser() {
+    const API = window.FINTORI_API_BASE
+      ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
+      : `${window.location.protocol}//${window.location.hostname}:5000`;
+    try {
+      await fetch(`${API}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' },
+      });
+    } catch {}
+    sessionStorage.removeItem('fintori_auth_token');
+    sessionStorage.removeItem('fintori_user');
+    window.location.href = 'auth.html';
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeAccountSidebar();
+  });
+
   (async () => {
     const API = window.FINTORI_API_BASE
       ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
@@ -242,35 +392,62 @@
       const ctrl = document.getElementById('indexAuthControls');
       if (!ctrl) return;
       if (data.user) {
+        currentUser = data.user;
+        sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+        if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+        const accountName = document.getElementById('accountSidebarName');
+        if (accountName) {
+          accountName.textContent = `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim() || data.user.email || 'Your account';
+        }
+        const banner = document.getElementById('upgradeBanner');
+        if (banner && data.user.plan !== 'paid' && !data.user.upgrade_banner_dismissed) banner.style.display = 'block';
+        const closeBtn = document.getElementById('upgradeBannerClose');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', async () => {
+            if (banner) banner.style.display = 'none';
+            try {
+              await fetch(`${API}/auth/dismiss-banner`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' },
+              });
+            } catch {}
+          }, { once: true });
+        }
         ctrl.innerHTML = `
-          <span style="font-size:13px;font-weight:600;color:var(--text)">${data.user.first_name}</span>
-          <a href="app.html" style="margin-left:8px;padding:7px 14px;background:linear-gradient(135deg,#2563eb,#7c3aed);
-            color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
-            Open App</a>`;
+          ${data.user.plan !== 'paid' ? `<a href="pricing.html" class="index-upgrade-btn">
+            <i class="fas fa-gem"></i><span>Upgrade</span></a>` : ''}
+          <a href="app.html" class="index-auth-btn index-auth-btn-primary" style="min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;margin-left:2px;border-radius:8px;border:1.5px solid transparent;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:14px;font-weight:800;line-height:1;text-decoration:none;white-space:nowrap;box-shadow:0 10px 22px rgba(37,99,235,.18)">Open App</a>
+          <button class="index-user-chip" type="button" onclick="toggleAccountSidebar()" aria-label="Open account menu" aria-controls="accountSidebar" aria-expanded="false" title="Signed in as ${data.user.first_name}">
+            <span class="index-user-avatar" aria-hidden="true"><i class="fas fa-user"></i></span>
+            <span class="index-user-copy">
+              <span class="index-user-kicker">Welcome back,</span>
+              <span class="index-user-name">${data.user.first_name}</span>
+            </span>
+          </button>`;
       } else {
         ctrl.innerHTML = `
-          <a href="auth.html" style="padding:7px 14px;border:1.5px solid var(--border,#e2e6ef);
-            border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;margin-right:6px">
-            Sign In</a>
-          <a href="auth.html?tab=register" style="padding:7px 14px;background:linear-gradient(135deg,#2563eb,#7c3aed);
-            color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
-            Get Started</a>`;
+          <a href="auth.html" class="index-auth-btn index-auth-btn-ghost" style="min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;margin-left:10px;border-radius:8px;border:1.5px solid rgba(18,32,58,.18);background:#fff;color:#12203a;font-size:14px;font-weight:800;line-height:1;text-decoration:none;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.06)">Sign In</a>
+          <a href="auth.html?tab=register" class="index-auth-btn index-auth-btn-primary" style="min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;margin-left:12px;border-radius:8px;border:1.5px solid transparent;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:14px;font-weight:800;line-height:1;text-decoration:none;white-space:nowrap;box-shadow:0 10px 22px rgba(37,99,235,.18)">Get Started</a>`;
       }
     } catch {}
   })();
 
-  themeToggle.addEventListener('click', () => {
-    const currentTheme = htmlElement.getAttribute('data-theme');
-    const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+  themeToggle.addEventListener('change', () => {
+    const nextTheme = themeToggle.checked ? 'dark' : 'light';
     htmlElement.setAttribute('data-theme', nextTheme);
     localStorage.setItem('theme', nextTheme);
     updateThemeIcon(nextTheme);
   });
 
   function updateThemeIcon(theme) {
-    const icon = themeToggle.querySelector('i');
-    icon.classList.toggle('fa-sun', theme === 'dark');
-    icon.classList.toggle('fa-moon', theme !== 'dark');
+    themeToggle.checked = theme === 'dark';
+    themeToggle.setAttribute('aria-checked', String(theme === 'dark'));
+    const icon = document.querySelector('.toggle-icon');
+    if (icon) {
+      icon.classList.toggle('fa-sun', theme !== 'dark');
+      icon.classList.toggle('fa-moon', theme === 'dark');
+    }
   }
 
   const scrollSections = document.querySelectorAll('.scroll-panel');

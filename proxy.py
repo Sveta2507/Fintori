@@ -20,6 +20,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from authlib.integrations.flask_client import OAuth
 
+try:
+    import stripe
+except ImportError:
+    stripe = None
+
 load_dotenv()
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -44,6 +49,11 @@ GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 APP_BASE_URL         = os.getenv('APP_BASE_URL', 'http://localhost:5500')
 BACKEND_BASE_URL     = os.getenv('BACKEND_BASE_URL', 'http://localhost:5000')
+STRIPE_SECRET_KEY    = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_PRICE_ID      = os.getenv('STRIPE_PRICE_ID')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+if stripe and STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
 
 ALLOWED_ORIGINS = [
     o.strip()
@@ -106,7 +116,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY']                       = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI']          = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS']   = False
-app.config['SESSION_COOKIE_SECURE']            = True
+app.config['SESSION_COOKIE_SECURE']            = BACKEND_BASE_URL.startswith('https://')
 app.config['SESSION_COOKIE_HTTPONLY']          = True
 app.config['SESSION_COOKIE_SAMESITE']          = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME']       = timedelta(days=30)
@@ -198,6 +208,7 @@ class User(db.Model):
             'email':        self.email,
             'first_name':   self.first_name,
             'last_name':    self.last_name,
+            'second_name':  self.second_name,
             'company_name': self.company_name,
             'plan':         self.plan,
             'ai_remaining': (PAID_AI_LIMIT - self.ai_used_month)
@@ -307,7 +318,13 @@ def _validate_session_token(token: str) -> 'User | None':
 
 # ── AUTH HELPERS ──────────────────────────────────────────────────────────────
 def _get_auth_user() -> 'User | None':
-    """Read user_id from Flask session cookie."""
+    """Read user_id from Flask session cookie or short-lived auth token."""
+    token = request.headers.get('X-Auth-Token', '').strip()
+    if token:
+        user = _validate_session_token(token)
+        if user:
+            return user
+
     uid = session.get('user_id')
     if not uid:
         return None
@@ -522,6 +539,98 @@ def dismiss_banner(user):
     user.upgrade_banner_dismissed = True
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@app.route('/auth/profile', methods=['PATCH', 'OPTIONS'])
+@require_auth
+def update_profile(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    data = request.get_json(silent=True) or {}
+    first_name   = (data.get('first_name') or '').strip()
+    last_name    = (data.get('last_name') or '').strip()
+    second_name  = (data.get('second_name') or '').strip() or None
+    company_name = (data.get('company_name') or '').strip() or None
+
+    errors = {}
+    if not first_name:
+        errors['first_name'] = 'First name is required.'
+    elif len(first_name) > 100:
+        errors['first_name'] = 'First name is too long.'
+
+    if not last_name:
+        errors['last_name'] = 'Last name is required.'
+    elif len(last_name) > 100:
+        errors['last_name'] = 'Last name is too long.'
+
+    if company_name and len(company_name) > 200:
+        errors['company_name'] = 'Company name is too long.'
+
+    if second_name and len(second_name) > 100:
+        errors['second_name'] = 'Second name is too long.'
+
+    if errors:
+        return jsonify({'errors': errors}), 422
+
+    user.first_name = first_name
+    user.last_name = last_name
+    user.second_name = second_name
+    user.company_name = company_name
+    db.session.commit()
+    token = _issue_session_token(user.id)
+    return jsonify({'user': user.to_public_dict(), 'session_token': token})
+
+
+@app.route('/auth/password', methods=['POST', 'OPTIONS'])
+@require_auth
+def change_password(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    if not user.password_hash:
+        return jsonify({'error': 'Password changes are unavailable for Google sign-in accounts.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    current_password = data.get('current_password') or ''
+    new_password     = data.get('new_password') or ''
+    new_password2    = data.get('new_password2') or ''
+
+    errors = {}
+    if not user.check_password(current_password):
+        errors['current_password'] = 'Current password is incorrect.'
+
+    pw_err = _validate_password(new_password)
+    if pw_err:
+        errors['new_password'] = pw_err
+    elif new_password != new_password2:
+        errors['new_password2'] = 'Passwords do not match.'
+
+    if errors:
+        return jsonify({'errors': errors}), 422
+
+    user.set_password(new_password)
+    db.session.commit()
+    token = _issue_session_token(user.id)
+    return jsonify({'ok': True, 'session_token': token})
+
+
+@app.route('/auth/delete-request', methods=['POST', 'OPTIONS'])
+@require_auth
+def request_account_deletion(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    app.logger.warning(
+        'Account deletion requested for user_id=%s email=%s at %s',
+        user.id,
+        user.email,
+        datetime.now(timezone.utc).isoformat(),
+    )
+    return jsonify({
+        'ok': True,
+        'message': 'Account deletion request received. The Fintori team will review it shortly.',
+    })
 
 
 # ── CALCULATION HISTORY ───────────────────────────────────────────────────────
@@ -807,13 +916,139 @@ def render_pdf():
 # ── UPGRADE / SUBSCRIPTION ────────────────────────────────────────────────────
 # Placeholder — integrate Stripe here when ready
 
+def _stripe_missing_config() -> list[str]:
+    missing = []
+    if stripe is None:
+        missing.append('stripe package')
+    if not STRIPE_SECRET_KEY:
+        missing.append('STRIPE_SECRET_KEY')
+    if not STRIPE_PRICE_ID:
+        missing.append('STRIPE_PRICE_ID')
+    return missing
+
+
+@app.route('/subscription/config', methods=['GET', 'OPTIONS'])
+@require_auth
+def subscription_config(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+    return jsonify({
+        'configured': not _stripe_missing_config(),
+        'missing': _stripe_missing_config(),
+        'plan': user.plan,
+        'price': '5.00',
+        'currency': 'GBP',
+    })
+
+
 @app.route('/subscription/upgrade', methods=['POST', 'OPTIONS'])
 @require_auth
 def upgrade_subscription(user):
     if request.method == 'OPTIONS':
         return make_response('', 200)
-    # TODO: Stripe Checkout session creation goes here
-    return jsonify({'redirect_url': f'{APP_BASE_URL}/payment.html'}), 200
+
+    missing = _stripe_missing_config()
+    if missing:
+        return jsonify({
+            'error': 'stripe_not_configured',
+            'missing': missing,
+            'message': 'Stripe checkout is not configured on this server yet.',
+        }), 503
+
+    success_url = f'{APP_BASE_URL}/payment.html?status=success&session_id={{CHECKOUT_SESSION_ID}}'
+    cancel_url = f'{APP_BASE_URL}/payment.html?status=cancelled'
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            mode='subscription',
+            line_items=[{'price': STRIPE_PRICE_ID, 'quantity': 1}],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer_email=user.email,
+            client_reference_id=str(user.id),
+            allow_promotion_codes=True,
+            metadata={'user_id': str(user.id), 'email': user.email},
+            subscription_data={
+                'metadata': {'user_id': str(user.id), 'email': user.email},
+            },
+        )
+    except Exception as e:
+        return jsonify({'error': 'stripe_error', 'message': str(e)}), 502
+
+    return jsonify({'redirect_url': checkout_session.url}), 200
+
+
+@app.route('/subscription/confirm', methods=['POST', 'OPTIONS'])
+@require_auth
+def confirm_subscription(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    missing = _stripe_missing_config()
+    if missing:
+        return jsonify({'error': 'stripe_not_configured', 'missing': missing}), 503
+
+    data = request.get_json(silent=True) or {}
+    session_id = (data.get('session_id') or '').strip()
+    if not session_id:
+        return jsonify({'error': 'Missing Checkout session id.'}), 400
+
+    try:
+        checkout_session = stripe.checkout.Session.retrieve(
+            session_id,
+            expand=['subscription'],
+        )
+    except Exception as e:
+        return jsonify({'error': 'stripe_error', 'message': str(e)}), 502
+
+    if str(checkout_session.get('client_reference_id')) != str(user.id):
+        return jsonify({'error': 'Session does not belong to this account.'}), 403
+
+    subscription = checkout_session.get('subscription')
+    subscription_status = getattr(subscription, 'status', None) if subscription else None
+    if checkout_session.get('payment_status') == 'paid' or subscription_status in ('active', 'trialing'):
+        user.plan = 'paid'
+        db.session.commit()
+        token = _issue_session_token(user.id)
+        return jsonify({'ok': True, 'user': user.to_public_dict(), 'session_token': token})
+
+    return jsonify({
+        'ok': False,
+        'status': checkout_session.get('payment_status') or subscription_status or 'pending',
+    }), 202
+
+
+@app.route('/stripe/webhook', methods=['POST'])
+def stripe_webhook():
+    if stripe is None or not STRIPE_WEBHOOK_SECRET:
+        return jsonify({'error': 'Stripe webhook not configured'}), 503
+
+    payload = request.get_data()
+    sig_header = request.headers.get('Stripe-Signature', '')
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except Exception:
+        return jsonify({'error': 'Invalid Stripe webhook'}), 400
+
+    obj = event['data']['object']
+    event_type = event['type']
+
+    if event_type == 'checkout.session.completed':
+        user_id = obj.get('client_reference_id') or (obj.get('metadata') or {}).get('user_id')
+        if user_id:
+            user = User.query.get(int(user_id))
+            if user:
+                user.plan = 'paid'
+                db.session.commit()
+    elif event_type in ('customer.subscription.deleted', 'customer.subscription.paused'):
+        user_id = (obj.get('metadata') or {}).get('user_id')
+        if user_id:
+            user = User.query.get(int(user_id))
+            if user:
+                user.plan = 'free'
+                db.session.commit()
+
+    return jsonify({'received': True})
 
 
 # ── DEV SERVER ────────────────────────────────────────────────────────────────

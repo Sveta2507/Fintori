@@ -8,9 +8,83 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="app.css">
+<style>
+  header .switch {
+    position: relative !important;
+    display: inline-block !important;
+    width: 60px !important;
+    height: 34px !important;
+    flex: 0 0 60px !important;
+  }
+
+  header .switch #themeToggle {
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    position: absolute !important;
+  }
+
+  header .switch .slider {
+    position: absolute !important;
+    cursor: pointer !important;
+    inset: 0 !important;
+    background-color: #ccc !important;
+    transition: .4s !important;
+  }
+
+  header .switch .slider:before {
+    position: absolute !important;
+    content: "" !important;
+    height: 26px !important;
+    width: 26px !important;
+    left: 4px !important;
+    bottom: 4px !important;
+    background-color: white !important;
+    transition: .4s !important;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.24) !important;
+  }
+
+  header .switch .toggle-icon {
+    position: absolute !important;
+    left: 4px !important;
+    bottom: 4px !important;
+    z-index: 1 !important;
+    width: 26px !important;
+    height: 26px !important;
+    display: grid !important;
+    place-items: center !important;
+    color: #f59e0b !important;
+    font-size: 13px !important;
+    pointer-events: none !important;
+    transition: .4s !important;
+  }
+
+  header .switch #themeToggle:checked + .slider {
+    background-color: #2196F3 !important;
+  }
+
+  header .switch #themeToggle:checked + .slider:before {
+    transform: translateX(26px) !important;
+  }
+
+  header .switch #themeToggle:checked ~ .toggle-icon {
+    color: #1e3a8a !important;
+    transform: translateX(26px) !important;
+  }
+
+  header .switch .slider.round {
+    border-radius: 34px !important;
+  }
+
+  header .switch .slider.round:before {
+    border-radius: 50% !important;
+  }
+</style>
 </head>
 <body>
 
+<div class="app-topbar">
 <header>
   <div class="logo-section">
     <span class="logo-name">Fintori</span>
@@ -19,9 +93,6 @@
   <div class="hdr-right">
     <!-- Auth controls — populated by JS -->
     <div id="authControls" style="display:flex;align-items:center;gap:8px"></div>
-    <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
-      <i class="fas fa-moon"></i>
-    </button>
   </div>
 </header>
 
@@ -40,10 +111,14 @@
     </button>
   </div>
 </div>
+</div>
 
 <div class="prog-bar"><div class="prog-fill" id="prog"></div></div>
 
 <div class="snav" id="snav">
+  <button class="history-toggle-btn snav-history-toggle" id="historyToggleBtn" type="button" onclick="toggleHistorySidebar()" aria-label="Open history" aria-controls="historySidebar" aria-expanded="false">
+    <i class="fas fa-bars"></i>
+  </button>
   <a class="sbtn sbtn-home" href="index.html"><i class="fas fa-arrow-left"></i><span class="sbtn-home-label"> Back to Main Page</span></a>
   <button class="sbtn active" onclick="goTo(1)" id="sb1">1 · Revenue</button>
   <button class="sbtn" onclick="goTo(2)" id="sb2">2 · Costs</button>
@@ -63,7 +138,38 @@
 
 <div class="app-layout">
 
+<!-- Account sidebar (right) -->
+<div class="account-backdrop" id="accountBackdrop" onclick="closeAccountSidebar()"></div>
+<aside class="account-sidebar" id="accountSidebar">
+  <div class="account-sidebar-head">
+    <span class="account-avatar" aria-hidden="true"><i class="fas fa-user"></i></span>
+    <div>
+      <div class="account-kicker">Welcome back</div>
+      <div class="account-name" id="accountSidebarName">Your account</div>
+    </div>
+  </div>
+  <nav class="account-nav" aria-label="Account navigation">
+    <div class="account-theme-row">
+      <span><i class="fas fa-circle-half-stroke"></i> Theme</span>
+      <label class="switch" title="Toggle dark mode" aria-label="Toggle dark mode">
+        <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
+        <span class="slider round" aria-hidden="true"></span>
+        <i class="fas fa-sun toggle-icon" aria-hidden="true"></i>
+      </label>
+    </div>
+    <a href="settings.html"><i class="fas fa-gear"></i><span>Settings</span></a>
+    <a href="pricing.html"><i class="fas fa-tags"></i><span>Pricing & Plans</span></a>
+    <a href="payment.html"><i class="fas fa-credit-card"></i><span>Payment</span></a>
+    <a href="terms.html"><i class="fas fa-file-contract"></i><span>Terms</span></a>
+    <a href="index.html"><i class="fas fa-house"></i><span>Main Page</span></a>
+  </nav>
+  <button class="account-logout" type="button" onclick="logoutUser()">
+    <i class="fas fa-right-from-bracket"></i><span>Sign out</span>
+  </button>
+</aside>
+
 <!-- History sidebar (left) -->
+<div class="history-backdrop" id="historyBackdrop" onclick="closeHistorySidebar()"></div>
 <aside class="history-sidebar" id="historySidebar">
   <div class="history-sidebar-hdr">
     <span><i class="fas fa-clock-rotate-left"></i> History</span>
@@ -555,23 +661,21 @@
   htmlElement.setAttribute('data-theme', savedTheme);
   updateThemeIcon(savedTheme);
   
-  // Toggle theme on button click
-  themeToggle.addEventListener('click', () => {
-    const currentTheme = htmlElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  // Toggle theme on switch change
+  themeToggle.addEventListener('change', () => {
+    const newTheme = themeToggle.checked ? 'dark' : 'light';
     htmlElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
     updateThemeIcon(newTheme);
   });
   
   function updateThemeIcon(theme) {
-    const icon = themeToggle.querySelector('i');
-    if (theme === 'dark') {
-      icon.classList.remove('fa-moon');
-      icon.classList.add('fa-sun');
-    } else {
-      icon.classList.remove('fa-sun');
-      icon.classList.add('fa-moon');
+    themeToggle.checked = theme === 'dark';
+    themeToggle.setAttribute('aria-checked', String(theme === 'dark'));
+    const icon = document.querySelector('.toggle-icon');
+    if (icon) {
+      icon.classList.toggle('fa-sun', theme !== 'dark');
+      icon.classList.toggle('fa-moon', theme === 'dark');
     }
   }
 </script>
