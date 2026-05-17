@@ -206,8 +206,9 @@ function renderHistorySidebar(history) {
     return;
   }
 
+  window.__fintoriHistorySummaries = new Map(history.map(c => [c.id, c.summary]));
   list.innerHTML = history.map((c, i) => `
-    <div class="history-item" title="${c.label}" onclick="loadHistoryItem(${JSON.stringify(c.summary).replace(/"/g, '&quot;')})">
+    <div class="history-item" title="${c.label}" onclick="loadHistoryItemById(${c.id})">
       <div class="history-item-num">${i + 1}</div>
       <div class="history-item-info">
         <div class="history-item-label">${c.label}</div>
@@ -218,9 +219,19 @@ function renderHistorySidebar(history) {
     </div>`).join('');
 }
 
+function loadHistoryItemById(id) {
+  const summary = window.__fintoriHistorySummaries?.get(id);
+  loadHistoryItem(summary);
+}
+
 function loadHistoryItem(summary) {
   if (!summary) return;
   closeHistorySidebar();
+
+  if (restoreHistoryResults(summary)) return;
+
+  showToast('This older history item only has a summary. Create a new analysis to save the full results view.');
+  return;
 
   alert(
     `Calculation from history:\n` +
@@ -228,6 +239,51 @@ function loadHistoryItem(summary) {
     `Net margin: ${((summary.netMgn||0)*100).toFixed(1)}%\n` +
     `Sector: ${summary.sector||'—'}`
   );
+}
+
+function restoreHistoryResults(summary) {
+  const results = document.getElementById('results');
+  if (!results || !summary || !summary.results_html) return false;
+
+  results.innerHTML = summary.results_html;
+  results.style.display = 'grid';
+  requestAnimationFrame(() => results.classList.add('is-open'));
+
+  try {
+    localStorage.setItem(RESULTS_STORAGE_KEY, summary.results_html);
+    if (summary.verdict_data) {
+      window.__fintoriVerdictData = summary.verdict_data;
+      localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify(summary.verdict_data));
+    }
+    if (summary.calc_fp) {
+      localStorage.setItem('fintori_calc_fp', summary.calc_fp);
+    }
+    localStorage.removeItem(AI_REPORT_KEY);
+  } catch(e) {}
+
+  const loading = document.getElementById('loading');
+  if (loading) loading.style.display = 'none';
+
+  currentStep = 4;
+  unlockedStep = Math.max(unlockedStep, 4);
+  [1,2,3].forEach(i => {
+    document.getElementById('s' + i)?.classList.remove('active');
+    document.getElementById('sb' + i)?.classList.remove('active');
+    document.getElementById('sb' + i)?.classList.add('done');
+  });
+  document.getElementById('sb4')?.classList.add('active');
+  const progress = document.getElementById('prog');
+  if (progress) progress.style.width = '100%';
+
+  syncNavLockState();
+  setStepUrl(4);
+  initAppChrome();
+  renderProFeatures();
+  syncBenchFillHeight();
+  setTimeout(syncBenchFillHeight, 120);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('History result loaded.');
+  return true;
 }
 
 async function deleteHistoryItem(id, btn) {
@@ -1106,14 +1162,21 @@ function render(){
   window.scrollTo({top:0,behavior:'smooth'});
 
   window.__fintoriVerdictData = d;
+  let calcFp = '';
   // Persist calc data so AI button works after reload.
   // Also store a fingerprint of the current calculation so that on restore
   // we can detect if the AI report belongs to a different set of numbers.
   try {
-    const fp = [Math.round(d.avgRev), Math.round(d.totProfit), Math.round(d.totalCostsM), d.sector].join('|');
-    localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify({ ...d, _fp: fp }));
-    localStorage.setItem('fintori_calc_fp', fp);
+    calcFp = [Math.round(d.avgRev), Math.round(d.totProfit), Math.round(d.totalCostsM), d.sector].join('|');
+    localStorage.setItem(VERDICT_DATA_KEY, JSON.stringify({ ...d, _fp: calcFp }));
+    localStorage.setItem('fintori_calc_fp', calcFp);
   } catch(e){}
+
+  // Render Pro features before saving history so the history item restores
+  // the same results view the user saw on screen.
+  renderHealthScore(d);
+  renderWhatIf(d);
+
   // Save calculation to server history
   saveCalcToHistory({
     avgRev:      Math.round(d.avgRev),
@@ -1125,12 +1188,10 @@ function render(){
     runway:      d.runway !== null ? +d.runway.toFixed(2) : null,
     wcr:         d.wcr    !== null ? +d.wcr.toFixed(2)    : null,
     debtRatio:   +d.debtRatio.toFixed(2),
+    results_html: document.getElementById('results')?.innerHTML || '',
+    verdict_data: { ...d, _fp: calcFp },
+    calc_fp: calcFp,
   });
-
-  // Render Pro features
-  renderHealthScore(d);
-  renderWhatIf(d);
-
   // Show upgrade nudge on AI/PDF buttons for free users who've used their trial
   if (_currentUser && _currentUser.plan === 'free') {
     if (_currentUser.ai_remaining <= 0) {
@@ -2090,8 +2151,8 @@ function buildMobilePdfHtml(report){
     <div class="pdf-export">
       <div class="pdf-shell">
         <section class="pdf-hero">
-          <div class="pdf-eyebrow">Fintori Financial Analysis</div>
-          <h1 class="pdf-title">${report.title || 'Fintori Business Analysis'}</h1>
+          <div class="pdf-eyebrow">Fintori Financial Assistant</div>
+          <h1 class="pdf-title">${report.title || 'Fintori Business Assistant'}</h1>
           <p class="pdf-copy">${report.verdict}</p>
           <div class="pdf-meta">Generated ${report.date}</div>
         </section>
@@ -2307,7 +2368,7 @@ function renderTextPdf(doc, report){
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(19);
-  doc.text(report.title || 'Fintori Business Analysis', margin + 8, y + 8);
+  doc.text(report.title || 'Fintori Business Assistant', margin + 8, y + 8);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.text(`Generated ${report.date}`, margin + 8, y + 16);

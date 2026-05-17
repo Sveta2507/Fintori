@@ -4,11 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fintori — Sign In / Register</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="css/style.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @font-face {
+    font-family: "Allura";
+    src: url("fonts/Allura-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
 
   body {
     font-family: 'Inter', sans-serif;
@@ -29,12 +37,24 @@
   }
 
   .logo-name {
-    font-size: 20px;
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-size: 28px;
     font-weight: 800;
     background: linear-gradient(135deg, #2563eb, #7c3aed);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    letter-spacing: 0;
+  }
+
+  .logo-tag {
+    margin-top: 0;
+    font-family: "Allura", cursive;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 400;
+    color: rgba(18, 32, 58, 0.78);
+    letter-spacing: 0;
   }
 
   .auth-wrap {
@@ -292,18 +312,397 @@
     animation: spin .7s linear infinite;
   }
 
+  .toast-stack {
+    position: fixed;
+    top: 108px;
+    right: 18px;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+  }
+  .step-toast {
+    min-width: 280px;
+    max-width: min(360px, calc(100vw - 28px));
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, #fff7f7 0%, #ffe8e8 100%);
+    color: #7f1d1d;
+    border: 1px solid #ef9a9a;
+    border-left: 4px solid #dc3131;
+    border-radius: 12px;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+    pointer-events: auto;
+    animation: toastSlideIn .34s cubic-bezier(.22,1,.36,1);
+  }
+  .step-toast.fade-out { animation: toastSlideOut .24s ease forwards; }
+  .step-toast-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #dc3131;
+    color: #fff;
+    font-size: 12px;
+    box-shadow: 0 6px 14px rgba(220,49,49,.24);
+  }
+  .step-toast-text { font-size: 13px; font-weight: 600; line-height: 1.55; }
+  @keyframes toastSlideIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastSlideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
+
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    min-height: 74px;
+    justify-content: space-between;
+    border-bottom: 0;
+    background: transparent;
+    padding: 18px 28px;
+  }
+
+  .auth-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+    flex: 0 0 60px;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #cbd5e1;
+    transition: .28s;
+    border-radius: 34px;
+    box-shadow: inset 0 1px 4px rgba(15, 23, 42, .18);
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .28s;
+    border-radius: 50%;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, .28);
+  }
+
+  .toggle-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #f59e0b;
+    font-size: 13px;
+    pointer-events: none;
+    transition: transform .28s, color .28s;
+  }
+
+  .switch input:checked + .slider {
+    background-color: #2196f3;
+  }
+
+  .switch input:checked + .slider:before {
+    transform: translateX(26px);
+  }
+
+  .switch input:checked ~ .toggle-icon {
+    transform: translate(26px, -50%);
+    color: #1e293b;
+  }
+
+  .auth-wrap {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(430px, .95fr);
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  .auth-visual {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    background: #0b162c;
+  }
+
+  .auth-visual::before,
+  .auth-visual::after,
+  .auth-visual-slide {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    animation: authFade 18s infinite;
+    transform: scale(1.04);
+  }
+
+  .auth-visual::before {
+    background-image: linear-gradient(rgba(8, 19, 42, .22), rgba(8, 19, 42, .62)), url("images/analytics.jpg");
+  }
+
+  .auth-visual-slide {
+    background-image: linear-gradient(rgba(8, 19, 42, .18), rgba(8, 19, 42, .58)), url("images/planning.jpg");
+    animation-delay: 6s;
+  }
+
+  .auth-visual::after {
+    background-image: linear-gradient(rgba(8, 19, 42, .16), rgba(8, 19, 42, .6)), url("images/trust.jpg");
+    animation-delay: 12s;
+  }
+
+  @keyframes authFade {
+    0%, 100% { opacity: 0; transform: scale(1.04); }
+    7%, 31% { opacity: 1; transform: scale(1); }
+    38% { opacity: 0; transform: scale(1.02); }
+  }
+
+  .auth-visual-copy {
+    position: relative;
+    z-index: 2;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 112px 56px 64px;
+    color: #fff;
+  }
+
+  .auth-visual-copy h1 {
+    max-width: 620px;
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-size: clamp(38px, 5vw, 70px);
+    line-height: 1;
+    letter-spacing: 0;
+    margin-bottom: 18px;
+  }
+
+  .auth-visual-copy p {
+    max-width: 540px;
+    font-size: 18px;
+    line-height: 1.7;
+    color: rgba(255,255,255,.82);
+  }
+
+  .auth-panel {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 104px 38px 44px;
+    background:
+      radial-gradient(circle at 92% 8%, rgba(37,99,235,.09), transparent 28%),
+      var(--bg, #f5f7fb);
+  }
+
+  .auth-card {
+    max-width: 500px;
+    border-radius: 14px;
+    padding: 34px;
+    box-shadow: 0 18px 46px rgba(31, 77, 184, .12);
+  }
+
+  .auth-back {
+    margin-top: 16px;
+    min-height: 42px;
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border, #e2e6ef);
+    background: var(--surface, #fff);
+    color: var(--text, #1a1d23);
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    transition: transform .18s, border-color .18s, box-shadow .18s;
+  }
+
+  .auth-back:hover {
+    transform: translateY(-1px);
+    border-color: #2563eb;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, .12);
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  [data-theme="dark"] body {
+    --bg: #0f172a;
+    --surface: #111c32;
+    --border: rgba(255,255,255,.12);
+    --text: #e2e8f0;
+    --g400: #94a3b8;
+    --g600: #cbd5e1;
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] header {
+    background: transparent;
+  }
+
+  [data-theme="dark"] .logo-name {
+    background: linear-gradient(135deg, #60a5fa, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+
+  [data-theme="dark"] .logo-tag {
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  [data-theme="dark"] .auth-panel {
+    background:
+      radial-gradient(circle at 88% 10%, rgba(96,165,250,.13), transparent 30%),
+      #0f172a;
+  }
+
+  [data-theme="dark"] .auth-card {
+    background: #111c32;
+    border-color: rgba(255,255,255,.1);
+    box-shadow: 0 20px 48px rgba(0,0,0,.28);
+  }
+
+  [data-theme="dark"] .auth-tab.active,
+  [data-theme="dark"] .field input:focus,
+  [data-theme="dark"] .btn-google,
+  [data-theme="dark"] .auth-back {
+    background: #0b162c;
+  }
+
+  [data-theme="dark"] .auth-tabs {
+  background: #0b162c;
+  border: 1px solid rgba(255,255,255,.10);
+  }
+
+  [data-theme="dark"] .auth-tab {
+    color: #94a3b8;
+  }
+
+  [data-theme="dark"] .auth-tab.active {
+    background: #1e3a8a;
+    color: #ffffff;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, .28);
+  }
+
+  [data-theme="dark"] .field input {
+    background: #0b162c;
+    border-color: rgba(255,255,255,.14);
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .field input:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96,165,250,.14);
+  }
+
+  [data-theme="dark"] .btn-google:hover,
+  [data-theme="dark"] .auth-back:hover {
+    border-color: #60a5fa;
+    background: rgba(96,165,250,.12);
+  }
+
+  [data-theme="dark"] .auth-error {
+    background: rgba(127,29,29,.2);
+    border-color: rgba(248,113,113,.35);
+    color: #fecaca;
+  }
+
+  [data-theme="dark"] .step-toast {
+    background: linear-gradient(180deg, #331313 0%, #221018 100%);
+    color: #fecaca;
+    border-color: rgba(248,113,113,.38);
+    border-left-color: #f87171;
+  }
+
+  @media (max-width: 900px) {
+    header { padding: 16px 18px; }
+    .auth-wrap { grid-template-columns: 1fr; }
+    .auth-visual { min-height: 340px; }
+    .auth-visual-copy { padding: 106px 24px 34px; }
+    .auth-panel { min-height: auto; padding: 32px 16px 42px; }
+    .auth-card { padding: 26px 20px; }
+  }
+
+  @media (max-width: 560px) {
+    .logo-name { font-size: 24px; }
+    .logo-tag { font-size: 17px; }
+    .auth-visual-copy h1 { font-size: 34px; }
+    .auth-visual-copy p { font-size: 15px; }
+    .field-row { grid-template-columns: 1fr; gap: 0; }
+  }
 </style>
+<script>
+  document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
+</script>
 </head>
 <body>
 
 <header>
-  <a href="index.html" style="text-decoration:none">
+  <a href="index.html" style="text-decoration:none;display:flex;flex-direction:row;align-items:baseline;gap:6px">
     <span class="logo-name">Fintori</span>
+    <span class="logo-tag">Financial Assistant</span>
   </a>
+  <div class="auth-theme-toggle">
+    <label class="switch" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
+      <span class="slider"></span>
+      <i class="fas fa-sun toggle-icon" aria-hidden="true"></i>
+    </label>
+  </div>
 </header>
 
 <div class="auth-wrap">
+  <section class="auth-visual" aria-hidden="true">
+    <span class="auth-visual-slide"></span>
+    <div class="auth-visual-copy">
+      <h1>Understand the numbers before they become decisions.</h1>
+      <p>Sign in to keep your calculations, reports, exports, and planning tools in one polished Fintori workspace.</p>
+    </div>
+  </section>
+
+  <main class="auth-panel">
   <div class="auth-card">
 
     <div class="auth-tabs">
@@ -438,7 +837,9 @@
       </button>
     </div>
 
+    <a class="auth-back" href="index.html"><i class="fas fa-arrow-left"></i> Back to Menu</a>
   </div>
+  </main>
 </div>
 
 <script>
@@ -448,13 +849,39 @@ const API = window.FINTORI_API_BASE
     ? `${window.location.protocol}//${window.location.hostname}:5000`
     : window.location.origin;
 
+function ensureToastStack() {
+  let stack = document.querySelector('.toast-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'toast-stack';
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+
+function showToast(message) {
+  if (!message) return;
+  const stack = ensureToastStack();
+  const toast = document.createElement('div');
+  toast.className = 'step-toast';
+  toast.innerHTML = '<span class="step-toast-icon"><i class="fas fa-xmark"></i></span><div class="step-toast-text"></div>';
+  toast.querySelector('.step-toast-text').textContent = message;
+  stack.appendChild(toast);
+  window.clearTimeout(showToast.dismissTimer);
+  showToast.dismissTimer = window.setTimeout(() => {
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  }, 3200);
+}
+
 // Pre-select tab based on URL param
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('tab') === 'register') switchTab('register');
 if (urlParams.get('error') === 'google_failed') {
-  document.getElementById('loginError').textContent =
-    'Google sign-in failed. Please try again or use email/password.';
+  const message = 'Google sign-in failed. Please try again or use email/password.';
+  document.getElementById('loginError').textContent = message;
   document.getElementById('loginError').classList.add('show');
+  showToast(message);
 }
 
 function switchTab(tab) {
@@ -525,7 +952,10 @@ async function submitLogin() {
   let ok = true;
   if (!email)    { fieldErr('loginEmailErr', 'Email is required.');    ok = false; }
   if (!password) { fieldErr('loginPasswordErr', 'Password is required.'); ok = false; }
-  if (!ok) return;
+  if (!ok) {
+    showToast('Complete the required sign in fields.');
+    return;
+  }
 
   setLoading('loginBtn', true);
   try {
@@ -538,8 +968,10 @@ async function submitLogin() {
     const data = await res.json();
     if (!res.ok) {
       const errBox = document.getElementById('loginError');
-      errBox.textContent = data.error || 'Sign in failed. Please try again.';
+      const message = data.error || 'Sign in failed. Please try again.';
+      errBox.textContent = message;
       errBox.classList.add('show');
+      showToast(message);
       return;
     }
     // Store auth token in sessionStorage for API calls
@@ -548,8 +980,10 @@ async function submitLogin() {
     window.location.href = 'app.html';
   } catch {
     const errBox = document.getElementById('loginError');
-    errBox.textContent = 'Network error. Please try again.';
+    const message = 'Network error. Please try again.';
+    errBox.textContent = message;
     errBox.classList.add('show');
+    showToast(message);
   } finally {
     setLoading('loginBtn', false);
   }
@@ -586,8 +1020,12 @@ async function submitRegister() {
       if (errs.terms)      fieldErr('regTermsErr',      errs.terms);
       if (!Object.keys(errs).length) {
         const errBox = document.getElementById('registerError');
-        errBox.textContent = data.error || 'Registration failed.';
+        const message = data.error || 'Registration failed.';
+        errBox.textContent = message;
         errBox.classList.add('show');
+        showToast(message);
+      } else {
+        showToast(Object.values(errs)[0] || 'Please check the highlighted registration fields.');
       }
       return;
     }
@@ -596,8 +1034,10 @@ async function submitRegister() {
     window.location.href = 'app.html';
   } catch {
     const errBox = document.getElementById('registerError');
-    errBox.textContent = 'Network error. Please try again.';
+    const message = 'Network error. Please try again.';
+    errBox.textContent = message;
     errBox.classList.add('show');
+    showToast(message);
   } finally {
     setLoading('registerBtn', false);
   }
@@ -605,6 +1045,33 @@ async function submitRegister() {
 
 function googleAuth() {
   window.location.href = `${API}/auth/google`;
+}
+
+const htmlElement = document.documentElement;
+const themeToggle = document.getElementById('themeToggle');
+
+function updateThemeIcon(theme) {
+  if (!themeToggle) return;
+  const isDark = theme === 'dark';
+  themeToggle.checked = isDark;
+  themeToggle.setAttribute('aria-checked', String(isDark));
+  const icon = document.querySelector('.toggle-icon');
+  if (icon) {
+    icon.classList.toggle('fa-sun', !isDark);
+    icon.classList.toggle('fa-moon', isDark);
+  }
+}
+
+if (themeToggle) {
+  const savedTheme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+  htmlElement.setAttribute('data-theme', savedTheme);
+  updateThemeIcon(savedTheme);
+  themeToggle.addEventListener('change', () => {
+    const nextTheme = themeToggle.checked ? 'dark' : 'light';
+    htmlElement.setAttribute('data-theme', nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    updateThemeIcon(nextTheme);
+  });
 }
 
 // Allow Enter key to submit forms

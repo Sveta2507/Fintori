@@ -20,6 +20,13 @@
     --font: "Inter", sans-serif;
     --alt: "Plus Jakarta Sans", sans-serif;
   }
+  @font-face {
+    font-family: "Allura";
+    src: url("fonts/Allura-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     min-height: 100vh;
@@ -42,19 +49,30 @@
   }
   .brand {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
     text-decoration: none;
   }
   .logo-name {
     font-family: var(--alt);
-    font-size: 24px;
+    font-size: 28px;
     font-weight: 800;
-    color: var(--ink);
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: 0;
   }
   .logo-tag {
-    font-size: 10px;
-    color: rgba(18, 32, 58, 0.68);
-    font-weight: 600;
+    margin-top: 0;
+    font-family: "Allura", cursive;
+    font-size: 20px;
+    line-height: 1;
+    color: rgba(18, 32, 58, 0.78);
+    font-weight: 400;
+    letter-spacing: 0;
   }
   .header-actions {
     display: flex;
@@ -153,6 +171,23 @@
     font-size: 30px;
     line-height: 1.15;
   }
+  #profileTitle {
+    max-width: min(420px, 58vw);
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #profileSubtitle {
+    margin-top: 3px;
+    max-width: min(420px, 58vw);
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   h2 {
     font-size: 20px;
     margin-bottom: 6px;
@@ -166,6 +201,15 @@
     display: flex;
     align-items: center;
     gap: 14px;
+    min-width: 0;
+  }
+  .profile-copy {
+    min-width: 0;
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.1;
   }
   .avatar {
     width: 58px;
@@ -226,6 +270,33 @@
   input[readonly] {
     color: var(--muted);
     background: #f8fafc;
+  }
+  .password-wrap {
+    position: relative;
+  }
+  .password-wrap input {
+    padding-right: 44px;
+  }
+  .password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .password-toggle:hover {
+    background: #eef4ff;
+    color: var(--base);
   }
   .section-actions {
     display: flex;
@@ -313,6 +384,157 @@
   .status.ok { color: var(--ok); }
   .status.bad { color: var(--danger); }
   .hidden { display: none; }
+  .toast-stack {
+    position: fixed;
+    top: 108px;
+    right: 18px;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+  }
+  .step-toast {
+    min-width: 280px;
+    max-width: min(360px, calc(100vw - 28px));
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, #fff7f7 0%, #ffe8e8 100%);
+    color: #7f1d1d;
+    border: 1px solid #ef9a9a;
+    border-left: 4px solid #dc3131;
+    border-radius: 12px;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+    pointer-events: auto;
+    animation: toastSlideIn .34s cubic-bezier(.22,1,.36,1);
+  }
+  .step-toast.ok {
+    background: linear-gradient(180deg, #ecfdf5 0%, #dffbea 100%);
+    color: #14532d;
+    border-color: #86efac;
+    border-left-color: var(--ok);
+  }
+  .step-toast.ok .step-toast-icon { background: var(--ok); }
+  .step-toast.fade-out { animation: toastSlideOut .24s ease forwards; }
+  .step-toast-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #dc3131;
+    color: #fff;
+    font-size: 12px;
+    box-shadow: 0 6px 14px rgba(220,49,49,.24);
+  }
+  .step-toast-text { font-size: 13px; font-weight: 600; line-height: 1.55; }
+  @keyframes toastSlideIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastSlideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+  [data-theme="dark"] body {
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] header {
+    background: linear-gradient(135deg, #0b162c 0%, #13233f 100%);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  }
+  [data-theme="dark"] .logo-name {
+    background: linear-gradient(135deg, #60a5fa, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+  [data-theme="dark"] .logo-tag {
+    color: rgba(255, 255, 255, 0.82);
+  }
+  [data-theme="dark"] .settings-nav,
+  [data-theme="dark"] .panel {
+    background: #111c32;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+  }
+  [data-theme="dark"] .nav-link,
+  [data-theme="dark"] label,
+  [data-theme="dark"] h1,
+  [data-theme="dark"] h2 {
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] .nav-link:hover,
+  [data-theme="dark"] .nav-link.active {
+    background: rgba(96, 165, 250, 0.14);
+    color: #93c5fd;
+  }
+  [data-theme="dark"] .subtle,
+  [data-theme="dark"] .usage-label,
+  [data-theme="dark"] .password-toggle {
+    color: #94a3b8;
+  }
+  [data-theme="dark"] input,
+  [data-theme="dark"] select {
+    background: #0b162c;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] input:focus,
+  [data-theme="dark"] select:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+  }
+  [data-theme="dark"] input[readonly] {
+    background: #0f172a;
+    color: #94a3b8;
+  }
+  [data-theme="dark"] .setting-row {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+  [data-theme="dark"] .usage-card {
+    background: #0b162c;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  [data-theme="dark"] .usage-num,
+  [data-theme="dark"] .pill {
+    color: #93c5fd;
+  }
+  [data-theme="dark"] .pill {
+    background: rgba(96, 165, 250, 0.14);
+  }
+  [data-theme="dark"] .btn {
+    background: #0b162c;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] .btn-primary {
+    border-color: transparent;
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+  }
+  [data-theme="dark"] .btn-danger {
+    color: #f87171;
+  }
+  [data-theme="dark"] .password-toggle:hover {
+    background: rgba(96, 165, 250, 0.14);
+    color: #93c5fd;
+  }
+  [data-theme="dark"] .step-toast {
+    background: linear-gradient(180deg, #341b1b 0%, #241414 100%);
+    border-color: rgba(248, 113, 113, 0.35);
+    border-left-color: #f87171;
+    color: #fecaca;
+  }
+  [data-theme="dark"] .step-toast.ok {
+    background: linear-gradient(180deg, #123524 0%, #0f241a 100%);
+    border-color: rgba(134, 239, 172, 0.35);
+    border-left-color: #86efac;
+    color: #bbf7d0;
+  }
   @media (max-width: 820px) {
     header { padding: 14px 18px; }
     .settings-layout { grid-template-columns: 1fr; }
@@ -328,7 +550,7 @@
 <header>
   <a class="brand" href="index.html">
     <span class="logo-name">Fintori</span>
-    <span class="logo-tag">Financial Analysis</span>
+    <span class="logo-tag">Financial Assistant</span>
   </a>
   <div class="header-actions">
     <a class="btn" href="pricing.html"><i class="fas fa-tags"></i> Pricing</a>
@@ -350,7 +572,7 @@
         <div class="panel-head">
           <div class="profile-summary">
             <span class="avatar"><i class="fas fa-user"></i></span>
-            <div>
+            <div class="profile-copy">
               <h1 id="profileTitle">Account Settings</h1>
               <p class="subtle" id="profileSubtitle">Manage your Fintori account details.</p>
             </div>
@@ -433,11 +655,21 @@
           </div>
           <div class="field">
             <label for="newPassword">New password</label>
-            <input id="newPassword" type="password" autocomplete="new-password">
+            <div class="password-wrap">
+              <input id="newPassword" type="password" autocomplete="new-password">
+              <button class="password-toggle" type="button" data-password-toggle="newPassword" aria-label="Show new password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
           </div>
           <div class="field">
             <label for="newPassword2">Confirm new password</label>
-            <input id="newPassword2" type="password" autocomplete="new-password">
+            <div class="password-wrap">
+              <input id="newPassword2" type="password" autocomplete="new-password">
+              <button class="password-toggle" type="button" data-password-toggle="newPassword2" aria-label="Show confirm new password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
           </div>
         </div>
         <div class="section-actions">
@@ -497,6 +729,11 @@ const API = window.FINTORI_API_BASE
 
 let currentUser = null;
 
+function applyTheme(theme) {
+  const selected = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', selected);
+}
+
 function authHeaders(extra = {}) {
   return {
     ...extra,
@@ -509,6 +746,31 @@ function setStatus(id, message, ok = true) {
   if (!el) return;
   el.textContent = message || '';
   el.className = `status ${message ? (ok ? 'ok' : 'bad') : ''}`;
+  if (message) showToast(message, ok);
+}
+
+function ensureToastStack() {
+  let stack = document.querySelector('.toast-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'toast-stack';
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+
+function showToast(message, ok = false) {
+  const stack = ensureToastStack();
+  const toast = document.createElement('div');
+  toast.className = `step-toast ${ok ? 'ok' : ''}`;
+  toast.innerHTML = `<span class="step-toast-icon"><i class="fas ${ok ? 'fa-check' : 'fa-xmark'}"></i></span><div class="step-toast-text"></div>`;
+  toast.querySelector('.step-toast-text').textContent = message;
+  stack.appendChild(toast);
+  window.clearTimeout(showToast.dismissTimer);
+  showToast.dismissTimer = window.setTimeout(() => {
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  }, 3200);
 }
 
 function populateUser(user) {
@@ -667,10 +929,24 @@ document.getElementById('clearSessionBtn').addEventListener('click', () => {
   setStatus('securityStatus', 'Local browser session cleared. Sign in again to continue.');
 });
 
+document.querySelectorAll('[data-password-toggle]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.passwordToggle);
+    const icon = btn.querySelector('i');
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    icon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+    btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+  });
+});
+
 const darkPref = document.getElementById('darkModePref');
 darkPref.checked = localStorage.getItem('theme') === 'dark';
+applyTheme(darkPref.checked ? 'dark' : 'light');
 darkPref.addEventListener('change', () => {
-  localStorage.setItem('theme', darkPref.checked ? 'dark' : 'light');
+  const theme = darkPref.checked ? 'dark' : 'light';
+  localStorage.setItem('theme', theme);
+  applyTheme(theme);
   setStatus('prefStatus', 'Preference saved.');
 });
 

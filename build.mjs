@@ -84,7 +84,7 @@ function copyStatic() {
     if (existsSync(s)) { copyFileSync(s, d); console.log(`[build] Copied  ${file} -> dist/`); }
     else console.warn(`[build] WARN: ${file} not found, skipping`);
   });
-  ['css', 'images'].forEach(dir => {
+  ['css', 'images', 'fonts'].forEach(dir => {
     const srcDir = join(ROOT, dir), destDir = join(DIST, dir);
     if (!existsSync(srcDir)) return;
     mkdirSync(destDir, { recursive: true });

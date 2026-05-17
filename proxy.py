@@ -52,6 +52,9 @@ BACKEND_BASE_URL     = os.getenv('BACKEND_BASE_URL', 'http://localhost:5000')
 STRIPE_SECRET_KEY    = os.getenv('STRIPE_SECRET_KEY')
 STRIPE_PRICE_ID      = os.getenv('STRIPE_PRICE_ID')
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+STRIPE_PRO_AMOUNT_PENCE = int(os.getenv('STRIPE_PRO_AMOUNT_PENCE', '500'))
+STRIPE_PRO_CURRENCY = os.getenv('STRIPE_PRO_CURRENCY', 'gbp').lower()
+DEV_PRO_BYPASS = os.getenv('DEV_PRO_BYPASS', '1').lower() in ('1', 'true', 'yes')
 if stripe and STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
 
@@ -146,6 +149,13 @@ class User(db.Model):
     second_name   = db.Column(db.String(100), nullable=True)
     company_name  = db.Column(db.String(200), nullable=True)
     plan          = db.Column(db.String(20), nullable=False, default='free')  # 'free' | 'paid'
+
+    # Stripe subscription linkage
+    stripe_customer_id = db.Column(db.String(255), nullable=True, index=True)
+    stripe_subscription_id = db.Column(db.String(255), nullable=True, index=True)
+    stripe_subscription_status = db.Column(db.String(50), nullable=True)
+    stripe_checkout_session_id = db.Column(db.String(255), nullable=True)
+
     google_id     = db.Column(db.String(128), unique=True, nullable=True)
     terms_accepted = db.Column(db.Boolean, nullable=False, default=False)
     created_at    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -211,6 +221,8 @@ class User(db.Model):
             'second_name':  self.second_name,
             'company_name': self.company_name,
             'plan':         self.plan,
+            'stripe_subscription_status': self.stripe_subscription_status,
+            'has_stripe_customer': bool(self.stripe_customer_id),
             'ai_remaining': (PAID_AI_LIMIT - self.ai_used_month)
                             if self.plan == 'paid'
                             else max(0, FREE_AI_LIMIT - self.ai_trial_used),
@@ -242,8 +254,38 @@ class Calculation(db.Model):
 
 
 # ── DB INIT ───────────────────────────────────────────────────────────────────
+def _ensure_stripe_user_columns():
+    """
+    migration helper.
+    db.create_all() creates missing tables, but it does not add new columns
+    to an already existing users table
+    """
+    engine = db.engine
+    inspector = db.inspect(engine)
+
+    if 'users' not in inspector.get_table_names():
+        return
+
+    existing_columns = {col['name'] for col in inspector.get_columns('users')}
+
+    stripe_columns = {
+        'stripe_customer_id': 'VARCHAR(255)',
+        'stripe_subscription_id': 'VARCHAR(255)',
+        'stripe_subscription_status': 'VARCHAR(50)',
+        'stripe_checkout_session_id': 'VARCHAR(255)',
+    }
+
+    with engine.begin() as conn:
+        for column_name, column_type in stripe_columns.items():
+            if column_name not in existing_columns:
+                conn.exec_driver_sql(
+                    f'ALTER TABLE users ADD COLUMN {column_name} {column_type}'
+                )
+
+
 with app.app_context():
     db.create_all()
+    _ensure_stripe_user_columns()
 
 @app.route('/health')
 def health():
@@ -255,7 +297,7 @@ def _add_cors(response):
     if origin in ALLOWED_ORIGINS:
         response.headers['Access-Control-Allow-Origin']       = origin
         response.headers['Vary']                              = 'Origin'
-    response.headers['Access-Control-Allow-Methods']      = 'POST, OPTIONS, GET, DELETE'
+        response.headers['Access-Control-Allow-Methods']      = 'POST, OPTIONS, GET, DELETE, PATCH'
     response.headers['Access-Control-Allow-Headers']      = (
         'Content-Type, X-Proxy-Token, X-Session-Token, X-Auth-Token'
     )
@@ -914,7 +956,62 @@ def render_pdf():
 
 
 # ── UPGRADE / SUBSCRIPTION ────────────────────────────────────────────────────
-# Placeholder — integrate Stripe here when ready
+def _set_user_paid_from_stripe(
+    user: User,
+    stripe_customer_id: str | None = None,
+    stripe_subscription_id: str | None = None,
+    stripe_subscription_status: str | None = 'active',
+    stripe_checkout_session_id: str | None = None,
+):
+    user.plan = 'paid'
+    user.ai_used_month = 0
+    user.ai_reset_month = datetime.now(timezone.utc).strftime('%Y-%m')
+
+    if stripe_customer_id:
+        user.stripe_customer_id = stripe_customer_id
+    if stripe_subscription_id:
+        user.stripe_subscription_id = stripe_subscription_id
+    if stripe_subscription_status:
+        user.stripe_subscription_status = stripe_subscription_status
+    if stripe_checkout_session_id:
+        user.stripe_checkout_session_id = stripe_checkout_session_id
+
+    db.session.commit()
+
+
+def _set_user_free_from_stripe(user: User, stripe_subscription_status: str | None = None):
+    user.plan = 'free'
+    if stripe_subscription_status:
+        user.stripe_subscription_status = stripe_subscription_status
+    db.session.commit()
+
+def _stripe_value(obj, key, default=None):
+    """
+    reads values from StripeObject or dict.
+    """
+    if obj is None:
+        return default
+
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+
+    try:
+        return getattr(obj, key)
+    except AttributeError:
+        return default
+
+def _get_subscription_id(subscription_obj):
+    if not subscription_obj:
+        return None
+    if isinstance(subscription_obj, str):
+        return subscription_obj
+    return _stripe_value(subscription_obj, 'id')
+
+
+def _get_subscription_status(subscription_obj):
+    if not subscription_obj or isinstance(subscription_obj, str):
+        return None
+    return _stripe_value(subscription_obj, 'status')
 
 def _stripe_missing_config() -> list[str]:
     missing = []
@@ -922,9 +1019,24 @@ def _stripe_missing_config() -> list[str]:
         missing.append('stripe package')
     if not STRIPE_SECRET_KEY:
         missing.append('STRIPE_SECRET_KEY')
-    if not STRIPE_PRICE_ID:
-        missing.append('STRIPE_PRICE_ID')
     return missing
+
+
+def _stripe_pro_line_item() -> dict:
+    if STRIPE_PRICE_ID:
+        return {'price': STRIPE_PRICE_ID, 'quantity': 1}
+    return {
+        'price_data': {
+            'currency': STRIPE_PRO_CURRENCY,
+            'unit_amount': STRIPE_PRO_AMOUNT_PENCE,
+            'recurring': {'interval': 'month'},
+            'product_data': {
+                'name': 'Fintori Pro',
+                'description': '50 AI reports/month, unlimited PDF exports, history, Business Health Score, and What-If tools.',
+            },
+        },
+        'quantity': 1,
+    }
 
 
 @app.route('/subscription/config', methods=['GET', 'OPTIONS'])
@@ -936,8 +1048,9 @@ def subscription_config(user):
         'configured': not _stripe_missing_config(),
         'missing': _stripe_missing_config(),
         'plan': user.plan,
-        'price': '5.00',
-        'currency': 'GBP',
+        'price': f'{STRIPE_PRO_AMOUNT_PENCE / 100:.2f}',
+        'currency': STRIPE_PRO_CURRENCY.upper(),
+        'uses_saved_price': bool(STRIPE_PRICE_ID),
     })
 
 
@@ -961,7 +1074,7 @@ def upgrade_subscription(user):
     try:
         checkout_session = stripe.checkout.Session.create(
             mode='subscription',
-            line_items=[{'price': STRIPE_PRICE_ID, 'quantity': 1}],
+            line_items=[_stripe_pro_line_item()],
             success_url=success_url,
             cancel_url=cancel_url,
             customer_email=user.email,
@@ -1001,21 +1114,87 @@ def confirm_subscription(user):
     except Exception as e:
         return jsonify({'error': 'stripe_error', 'message': str(e)}), 502
 
-    if str(checkout_session.get('client_reference_id')) != str(user.id):
+    client_reference_id = _stripe_value(checkout_session, 'client_reference_id')
+
+    if str(client_reference_id) != str(user.id):
         return jsonify({'error': 'Session does not belong to this account.'}), 403
 
-    subscription = checkout_session.get('subscription')
-    subscription_status = getattr(subscription, 'status', None) if subscription else None
-    if checkout_session.get('payment_status') == 'paid' or subscription_status in ('active', 'trialing'):
-        user.plan = 'paid'
-        db.session.commit()
+    subscription = _stripe_value(checkout_session, 'subscription')
+    subscription_id = _get_subscription_id(subscription)
+    subscription_status = _get_subscription_status(subscription)
+
+    payment_status = _stripe_value(checkout_session, 'payment_status')
+
+    if payment_status == 'paid' or subscription_status in ('active', 'trialing'):
+        _set_user_paid_from_stripe(
+            user=user,
+            stripe_customer_id=_stripe_value(checkout_session, 'customer'),
+            stripe_subscription_id=subscription_id,
+            stripe_subscription_status=subscription_status or 'active',
+            stripe_checkout_session_id=_stripe_value(checkout_session, 'id'),
+        )
+
         token = _issue_session_token(user.id)
-        return jsonify({'ok': True, 'user': user.to_public_dict(), 'session_token': token})
+        return jsonify({
+            'ok': True,
+            'user': user.to_public_dict(),
+            'session_token': token
+        })
 
     return jsonify({
         'ok': False,
-        'status': checkout_session.get('payment_status') or subscription_status or 'pending',
+        'status': payment_status or subscription_status or 'pending',
     }), 202
+
+@app.route('/subscription/portal', methods=['POST', 'OPTIONS'])
+@require_auth
+def subscription_portal(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    missing = _stripe_missing_config()
+    if missing:
+        return jsonify({'error': 'stripe_not_configured', 'missing': missing}), 503
+
+    if user.plan != 'paid':
+        return jsonify({'error': 'Only Pro users can open the billing portal.'}), 403
+
+    if not user.stripe_customer_id:
+        return jsonify({
+            'error': 'missing_stripe_customer',
+            'message': 'This account does not have a Stripe customer linked yet. If you activated Pro with the dev bypass, billing portal is unavailable.'
+        }), 400
+
+    try:
+        portal_session = stripe.billing_portal.Session.create(
+            customer=user.stripe_customer_id,
+            return_url=f'{APP_BASE_URL}/payment.html',
+        )
+    except Exception as e:
+        return jsonify({'error': 'stripe_error', 'message': str(e)}), 502
+
+    return jsonify({'url': portal_session.url})
+
+
+@app.route('/subscription/dev-bypass', methods=['POST', 'OPTIONS'])
+@require_auth
+def dev_bypass_subscription(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    remote = request.remote_addr or ''
+    is_local_request = remote in ('127.0.0.1', '::1', 'localhost')
+    if not DEV_PRO_BYPASS or not is_local_request:
+        return jsonify({'error': 'Dev Pro bypass is only available locally.'}), 403
+
+    user.plan = 'paid'
+    user.ai_used_month = 0
+    user.ai_reset_month = datetime.now(timezone.utc).strftime('%Y-%m')
+    user.stripe_subscription_status = 'dev_bypass'
+    db.session.commit()
+
+    token = _issue_session_token(user.id)
+    return jsonify({'ok': True, 'user': user.to_public_dict(), 'session_token': token})
 
 
 @app.route('/stripe/webhook', methods=['POST'])
@@ -1025,8 +1204,17 @@ def stripe_webhook():
 
     payload = request.get_data()
     sig_header = request.headers.get('Stripe-Signature', '')
+
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        event = stripe.Webhook.construct_event(
+            payload,
+            sig_header,
+            STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        return jsonify({'error': 'Invalid Stripe webhook payload'}), 400
+    except stripe.error.SignatureVerificationError:
+        return jsonify({'error': 'Invalid Stripe webhook signature'}), 400
     except Exception:
         return jsonify({'error': 'Invalid Stripe webhook'}), 400
 
@@ -1034,22 +1222,72 @@ def stripe_webhook():
     event_type = event['type']
 
     if event_type == 'checkout.session.completed':
-        user_id = obj.get('client_reference_id') or (obj.get('metadata') or {}).get('user_id')
+        metadata = _stripe_value(obj, 'metadata', {}) or {}
+        user_id = _stripe_value(obj, 'client_reference_id') or metadata.get('user_id')
+
         if user_id:
             user = User.query.get(int(user_id))
             if user:
+                _set_user_paid_from_stripe(
+                    user=user,
+                    stripe_customer_id=_stripe_value(obj, 'customer'),
+                    stripe_subscription_id=_stripe_value(obj, 'subscription'),
+                    stripe_subscription_status='active',
+                    stripe_checkout_session_id=_stripe_value(obj, 'id'),
+                )
+
+    elif event_type == 'customer.subscription.updated':
+        metadata = _stripe_value(obj, 'metadata', {}) or {}
+        subscription_id = _stripe_value(obj, 'id')
+        status = _stripe_value(obj, 'status')
+        user_id = metadata.get('user_id')
+
+        user = None
+
+        if subscription_id:
+            user = User.query.filter_by(stripe_subscription_id=subscription_id).first()
+
+        if not user and user_id:
+            user = User.query.get(int(user_id))
+
+        if user:
+            user.stripe_subscription_id = subscription_id or user.stripe_subscription_id
+            user.stripe_subscription_status = status
+
+            if status in ('active', 'trialing'):
                 user.plan = 'paid'
-                db.session.commit()
-    elif event_type in ('customer.subscription.deleted', 'customer.subscription.paused'):
-        user_id = (obj.get('metadata') or {}).get('user_id')
-        if user_id:
-            user = User.query.get(int(user_id))
-            if user:
+            elif status in ('canceled', 'incomplete_expired', 'unpaid', 'paused'):
                 user.plan = 'free'
+
+            db.session.commit()
+
+    elif event_type in ('customer.subscription.deleted', 'customer.subscription.paused'):
+        metadata = _stripe_value(obj, 'metadata', {}) or {}
+        subscription_id = _stripe_value(obj, 'id')
+        status = _stripe_value(obj, 'status') or 'cancelled'
+        user_id = metadata.get('user_id')
+
+        user = None
+
+        if subscription_id:
+            user = User.query.filter_by(stripe_subscription_id=subscription_id).first()
+
+        if not user and user_id:
+            user = User.query.get(int(user_id))
+
+        if user:
+            _set_user_free_from_stripe(user, status)
+
+    elif event_type == 'invoice.payment_failed':
+        subscription_id = _stripe_value(obj, 'subscription')
+
+        if subscription_id:
+            user = User.query.filter_by(stripe_subscription_id=subscription_id).first()
+            if user:
+                user.stripe_subscription_status = 'payment_failed'
                 db.session.commit()
 
     return jsonify({'received': True})
-
 
 # ── DEV SERVER ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
