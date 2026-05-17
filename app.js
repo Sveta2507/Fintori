@@ -282,7 +282,7 @@ function restoreHistoryResults(summary) {
   syncBenchFillHeight();
   setTimeout(syncBenchFillHeight, 120);
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  showToast('History result loaded.');
+  showToast('History result loaded.', true);
   return true;
 }
 
@@ -764,11 +764,11 @@ function getToastStack(){
   return stack;
 }
 
-function showToast(message){
+function showToast(message, ok = false){
   const stack=getToastStack();
   const toast=document.createElement('div');
-  toast.className='step-toast';
-  toast.innerHTML='<span class="step-toast-icon"><i class="fas fa-xmark"></i></span><div class="step-toast-text">'+message+'</div>';
+  toast.className='step-toast' + (ok ? ' ok' : '');
+  toast.innerHTML='<span class="step-toast-icon"><i class="fas '+(ok ? 'fa-check' : 'fa-xmark')+'"></i></span><div class="step-toast-text">'+message+'</div>';
   stack.appendChild(toast);
 
   window.clearTimeout(showToast.dismissTimer);

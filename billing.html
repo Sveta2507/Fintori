@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fintori - Billing</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --base:#1f4db8; --ink:#12203a; --muted:#717580; --line:#e5e7eb;
+    --bg:#f7f7f7; --panel:#fff; --danger:#dc3131; --ok:#2ebb79;
+    --font:"Inter",sans-serif; --alt:"Plus Jakarta Sans",sans-serif;
+  }
+  @font-face {
+    font-family:"Allura";
+    src:url("fonts/Allura-Regular.ttf") format("truetype");
+    font-weight:400;
+    font-style:normal;
+    font-display:swap;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { min-height:100vh; font-family:var(--font); background:var(--bg); color:var(--ink); }
+  header {
+    min-height:74px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:16px 28px; background:var(--bg); box-shadow:0 4px 12px rgba(15,23,42,.06);
+    position:sticky; top:0; z-index:10;
+  }
+  .brand { display:flex; align-items:baseline; gap:6px; text-decoration:none; }
+  .logo-name {
+    font-family:var(--alt); font-size:28px; font-weight:800; letter-spacing:0;
+    background:linear-gradient(135deg,#2563eb,#7c3aed);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent;
+  }
+  .logo-tag { font-family:"Allura",cursive; font-size:20px; line-height:1; color:rgba(18,32,58,.78); }
+  main { max-width:1080px; margin:0 auto; padding:34px 24px 56px; }
+  .layout { display:grid; grid-template-columns:minmax(0,1.1fr) 340px; gap:22px; align-items:start; }
+  .panel {
+    background:var(--panel); border:1px solid rgba(31,77,184,.1); border-radius:10px;
+    padding:26px; box-shadow:0 14px 34px rgba(31,77,184,.08);
+  }
+  .eyebrow {
+    width:max-content; display:inline-flex; align-items:center; gap:8px; min-height:30px; padding:0 11px;
+    border-radius:999px; background:#eef4ff; color:var(--base); font-size:12px; font-weight:800;
+  }
+  h1 { margin-top:16px; font-family:var(--alt); font-size:34px; line-height:1.12; }
+  h2 { font-size:20px; margin-bottom:8px; }
+  .lead, .subtle { color:var(--muted); line-height:1.7; }
+  .lead { margin-top:12px; max-width:680px; font-size:15px; }
+  .status-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:24px 0; }
+  .status-card { border:1px solid var(--line); border-radius:8px; padding:15px; background:#fbfdff; }
+  .status-value { font-size:24px; font-weight:800; color:var(--base); text-transform:capitalize; }
+  .status-label { margin-top:3px; color:var(--muted); font-size:12px; font-weight:700; }
+  .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:22px; }
+  .btn {
+    min-height:42px; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:0 18px; border-radius:8px; border:1.5px solid rgba(18,32,58,.14);
+    background:#fff; color:var(--ink); font:800 14px var(--font); text-decoration:none; cursor:pointer;
+  }
+  .btn-primary { border-color:transparent; color:#fff; background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 10px 22px rgba(37,99,235,.18); }
+  .btn-danger { color:var(--danger); }
+  .btn:disabled { opacity:.55; cursor:not-allowed; }
+  .notice {
+    display:none; margin-top:18px; padding:12px 14px; border-radius:8px; font-size:13px; font-weight:700; line-height:1.55;
+  }
+  .notice.show { display:block; }
+  .notice.ok { background:#ecfdf5; color:#166534; border:1px solid #bbf7d0; }
+  .notice.warn { background:#fffbeb; color:#92400e; border:1px solid #fde68a; }
+  .notice.bad { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+  .summary-row { display:flex; justify-content:space-between; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .summary-row:last-child { border-bottom:0; }
+  .summary-row span { color:var(--muted); font-size:14px; }
+  .summary-row strong { text-align:right; }
+  .dev-box { display:none; margin-top:18px; padding:14px; border:1px dashed rgba(245,158,11,.55); border-radius:8px; background:#fffbeb; }
+  .dev-box.show { display:block; }
+  .dev-box p { color:#92400e; font-size:13px; font-weight:700; line-height:1.5; margin-bottom:10px; }
+  .transactions { margin-top:26px; padding-top:24px; border-top:1px solid var(--line); }
+  .transactions-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px; }
+  .transaction-list { display:grid; gap:10px; }
+  .transaction-row {
+    min-height:64px; display:grid; grid-template-columns:minmax(0,1.3fr) auto auto; align-items:center; gap:14px;
+    padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:#fbfdff;
+  }
+  .transaction-main { min-width:0; }
+  .transaction-title { font-size:14px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .transaction-date { margin-top:3px; color:var(--muted); font-size:12px; font-weight:700; }
+  .transaction-amount { font-size:15px; font-weight:800; color:var(--ink); white-space:nowrap; }
+  .transaction-status {
+    min-height:26px; display:inline-flex; align-items:center; justify-content:center; padding:0 10px;
+    border-radius:999px; background:#eef4ff; color:var(--base); font-size:12px; font-weight:800; text-transform:capitalize;
+  }
+  .transaction-status.paid { background:#ecfdf5; color:#166534; }
+  .transaction-status.open, .transaction-status.draft { background:#fffbeb; color:#92400e; }
+  .transaction-status.void, .transaction-status.uncollectible { background:#fef2f2; color:#991b1b; }
+  .transaction-link { color:var(--base); font-size:13px; font-weight:800; text-decoration:none; white-space:nowrap; }
+  .transaction-empty { padding:16px; border:1px dashed var(--line); border-radius:8px; color:var(--muted); font-size:13px; font-weight:700; line-height:1.6; background:#fbfdff; }
+  .toast-stack { position:fixed; top:108px; right:18px; z-index:1200; display:flex; flex-direction:column; gap:12px; pointer-events:none; }
+  .step-toast {
+    min-width:280px; max-width:min(360px,calc(100vw - 28px)); display:flex; align-items:flex-start; gap:12px;
+    padding:14px 16px; background:linear-gradient(180deg,#fff7f7 0%,#ffe8e8 100%); color:#7f1d1d;
+    border:1px solid #ef9a9a; border-left:4px solid #dc3131; border-radius:12px;
+    box-shadow:0 16px 34px rgba(15,23,42,.16); pointer-events:auto; animation:toastSlideIn .34s cubic-bezier(.22,1,.36,1);
+  }
+  .step-toast.ok { background:linear-gradient(180deg,#f0fff7 0%,#dcfce7 100%); color:#14532d; border-color:#86efac; border-left-color:#2ebb79; }
+  .step-toast.warn { background:linear-gradient(180deg,#fffbeb 0%,#fef3c7 100%); color:#92400e; border-color:#fde68a; border-left-color:#f59e0b; }
+  .step-toast.fade-out { animation:toastSlideOut .24s ease forwards; }
+  .step-toast-icon { width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; background:#dc3131; color:#fff; font-size:12px; box-shadow:0 6px 14px rgba(220,49,49,.24); }
+  .step-toast.ok .step-toast-icon { background:#2ebb79; box-shadow:0 6px 14px rgba(46,187,121,.24); }
+  .step-toast.warn .step-toast-icon { background:#f59e0b; box-shadow:0 6px 14px rgba(245,158,11,.24); }
+  .step-toast-text { font-size:13px; font-weight:600; line-height:1.55; }
+  @keyframes toastSlideIn { from{opacity:0;transform:translateX(26px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes toastSlideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(24px)} }
+  [data-theme="dark"] { color-scheme:dark; }
+  [data-theme="dark"] body { background:#0f172a; color:#e2e8f0; }
+  [data-theme="dark"] header { background:linear-gradient(135deg,#0b162c 0%,#13233f 100%); box-shadow:0 4px 16px rgba(0,0,0,.28); }
+  [data-theme="dark"] .logo-name { background:linear-gradient(135deg,#60a5fa,#c084fc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent; }
+  [data-theme="dark"] .logo-tag { color:rgba(255,255,255,.82); }
+  [data-theme="dark"] .panel { background:#111c32; border-color:rgba(255,255,255,.1); box-shadow:0 18px 40px rgba(0,0,0,.24); }
+  [data-theme="dark"] .lead, [data-theme="dark"] .subtle, [data-theme="dark"] .status-label, [data-theme="dark"] .summary-row span, [data-theme="dark"] .transaction-date, [data-theme="dark"] .transaction-empty { color:#94a3b8; }
+  [data-theme="dark"] .status-card, [data-theme="dark"] .btn, [data-theme="dark"] .transaction-row, [data-theme="dark"] .transaction-empty { background:#0b162c; border-color:rgba(255,255,255,.14); color:#e2e8f0; }
+  [data-theme="dark"] .summary-row { border-bottom-color:rgba(255,255,255,.1); }
+  [data-theme="dark"] .transactions { border-top-color:rgba(255,255,255,.1); }
+  [data-theme="dark"] .transaction-amount { color:#e2e8f0; }
+  [data-theme="dark"] .transaction-status { background:rgba(96,165,250,.14); color:#93c5fd; }
+  [data-theme="dark"] .transaction-status.paid { background:rgba(22,101,52,.22); color:#86efac; }
+  [data-theme="dark"] .transaction-status.open, [data-theme="dark"] .transaction-status.draft { background:rgba(146,64,14,.22); color:#fcd34d; }
+  [data-theme="dark"] .transaction-status.void, [data-theme="dark"] .transaction-status.uncollectible { background:rgba(153,27,27,.22); color:#fca5a5; }
+  [data-theme="dark"] .transaction-link { color:#93c5fd; }
+  [data-theme="dark"] .eyebrow { background:rgba(96,165,250,.14); color:#93c5fd; }
+  [data-theme="dark"] .dev-box { background:rgba(146,64,14,.16); border-color:rgba(252,211,77,.32); }
+  [data-theme="dark"] .dev-box p { color:#fcd34d; }
+  [data-theme="dark"] .notice.ok { background:rgba(22,101,52,.22); color:#86efac; border-color:rgba(134,239,172,.28); }
+  [data-theme="dark"] .notice.warn { background:rgba(146,64,14,.22); color:#fcd34d; border-color:rgba(252,211,77,.28); }
+  [data-theme="dark"] .notice.bad { background:rgba(153,27,27,.22); color:#fca5a5; border-color:rgba(252,165,165,.28); }
+  @media (max-width:860px) { header{padding:14px 18px;} .layout{grid-template-columns:1fr;} .status-grid{grid-template-columns:1fr;} .transaction-row{grid-template-columns:1fr;} }
+</style>
+<script>
+  document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
+</script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">
+    <span class="logo-name">Fintori</span>
+    <span class="logo-tag">Financial Assistant</span>
+  </a>
+  <div class="actions" style="margin-top:0">
+    <a class="btn" href="pricing.html"><i class="fas fa-tags"></i> Pricing</a>
+    <a class="btn btn-primary" href="app.html"><i class="fas fa-arrow-left"></i> Back to App</a>
+  </div>
+</header>
+
+<main>
+  <div class="layout">
+    <section class="panel">
+      <div class="eyebrow"><i class="fas fa-receipt"></i> Account billing</div>
+      <h1>Manage billing</h1>
+      <p class="lead" id="billingLead">Review your current plan, remaining allowances, and Stripe billing access.</p>
+
+      <div class="status-grid">
+        <div class="status-card">
+          <div class="status-value" id="planName">Checking...</div>
+          <div class="status-label">Current plan</div>
+        </div>
+        <div class="status-card">
+          <div class="status-value" id="aiRemaining">-</div>
+          <div class="status-label">AI reports remaining</div>
+        </div>
+        <div class="status-card">
+          <div class="status-value" id="pdfRemaining">-</div>
+          <div class="status-label">PDF exports remaining</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="portalBtn" type="button"><i class="fas fa-arrow-up-right-from-square"></i> Open Stripe Billing Portal</button>
+        <a class="btn btn-primary" id="upgradeBtn" href="payment.html"><i class="fas fa-gem"></i> Upgrade to Pro</a>
+        <a class="btn" href="settings.html"><i class="fas fa-gear"></i> Settings</a>
+      </div>
+
+      <div class="dev-box" id="devBox">
+        <p>Local development only. Dev Pro accounts do not have a real Stripe customer, so Stripe billing portal will not open.</p>
+        <button class="btn btn-danger" id="devDeactivateBtn" type="button"><i class="fas fa-rotate-left"></i> Dev Deactivate Pro</button>
+      </div>
+
+      <div class="notice" id="billingNotice"></div>
+
+      <section class="transactions" aria-labelledby="transactionsTitle">
+        <div class="transactions-head">
+          <div>
+            <h2 id="transactionsTitle">Transaction history</h2>
+            <p class="subtle">Recent Stripe invoices for this subscription.</p>
+          </div>
+        </div>
+        <div class="transaction-list" id="transactionList">
+          <div class="transaction-empty">Loading transactions...</div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="panel">
+      <h2>Subscription summary</h2>
+      <p class="subtle">Stripe manages card details, invoices, receipts, authentication, and cancellation for real paid subscriptions.</p>
+      <div style="margin-top:18px">
+        <div class="summary-row"><span>Status</span><strong id="subscriptionStatus">-</strong></div>
+        <div class="summary-row"><span>Billing</span><strong>Monthly</strong></div>
+        <div class="summary-row"><span>Price</span><strong>£5.00/month</strong></div>
+        <div class="summary-row"><span>Payment provider</span><strong>Stripe</strong></div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+const API = window.FINTORI_API_BASE
+  ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
+  : ['5500', '8000'].includes(window.location.port)
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : window.location.origin;
+
+const portalBtn = document.getElementById('portalBtn');
+const upgradeBtn = document.getElementById('upgradeBtn');
+const devBox = document.getElementById('devBox');
+const devDeactivateBtn = document.getElementById('devDeactivateBtn');
+const notice = document.getElementById('billingNotice');
+const transactionList = document.getElementById('transactionList');
+let currentUser = null;
+
+function authHeaders(extra = {}) {
+  return { ...extra, 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' };
+}
+
+function ensureToastStack() {
+  let stack = document.querySelector('.toast-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'toast-stack';
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+
+function showToast(message, tone = 'bad') {
+  if (!message) return;
+  const stack = ensureToastStack();
+  const toast = document.createElement('div');
+  const icon = tone === 'ok' ? 'fa-check' : tone === 'warn' ? 'fa-exclamation' : 'fa-xmark';
+  toast.className = `step-toast ${tone === 'ok' ? 'ok' : tone === 'warn' ? 'warn' : ''}`;
+  toast.innerHTML = `<span class="step-toast-icon"><i class="fas ${icon}"></i></span><div class="step-toast-text"></div>`;
+  toast.querySelector('.step-toast-text').textContent = message;
+  stack.appendChild(toast);
+  window.clearTimeout(showToast.dismissTimer);
+  showToast.dismissTimer = window.setTimeout(() => {
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  }, 3200);
+}
+
+function showNotice(message, tone = 'warn') {
+  notice.textContent = message;
+  notice.className = `notice show ${tone}`;
+  showToast(message, tone);
+}
+
+function renderUser(user) {
+  currentUser = user;
+  const isPaid = user.plan === 'paid';
+  const isDevBypass = user.stripe_subscription_status === 'dev_bypass';
+  const hasStripeBilling = !!user.has_stripe_customer;
+  const hasRealStripeSubscription = !!user.has_stripe_subscription && !String(user.stripe_subscription_status || '').startsWith('dev_');
+  document.getElementById('planName').textContent = isPaid ? 'Pro' : 'Free';
+  document.getElementById('aiRemaining').textContent = user.ai_remaining ?? 0;
+  document.getElementById('pdfRemaining').textContent = isPaid ? 'Unlimited' : (user.pdf_remaining ?? 0);
+  document.getElementById('subscriptionStatus').textContent = user.stripe_subscription_status || (isPaid ? 'active' : 'free');
+
+  portalBtn.style.display = (isPaid || hasStripeBilling) ? 'inline-flex' : 'none';
+  upgradeBtn.style.display = isPaid ? 'none' : 'inline-flex';
+  portalBtn.disabled = false;
+
+  if (isPaid && hasStripeBilling) {
+    document.getElementById('billingLead').textContent = 'Your Pro subscription is linked to Stripe. Open the billing portal to manage card details, invoices, and cancellation.';
+  } else if (isPaid) {
+    document.getElementById('billingLead').textContent = 'Your account is Pro, but it is not linked to a real Stripe customer. This usually means it was activated with the dev bypass.';
+  } else {
+    document.getElementById('billingLead').textContent = 'You are on the Free plan. Upgrade to Pro when you are ready for more reports and unlimited PDF exports.';
+  }
+
+  if (['localhost', '127.0.0.1'].includes(window.location.hostname) && isDevBypass && !hasRealStripeSubscription) {
+    devBox.classList.add('show');
+  } else {
+    devBox.classList.remove('show');
+  }
+}
+
+function formatMoney(amount, currency) {
+  const value = (Number(amount) || 0) / 100;
+  try {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: currency || 'GBP',
+    }).format(value);
+  } catch {
+    return `${currency || 'GBP'} ${value.toFixed(2)}`;
+  }
+}
+
+function formatInvoiceDate(timestamp) {
+  if (!timestamp) return 'Date unavailable';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(timestamp * 1000));
+  } catch {
+    return 'Date unavailable';
+  }
+}
+
+function renderTransactions(transactions, message = '') {
+  if (!transactionList) return;
+  if (!transactions || !transactions.length) {
+    transactionList.innerHTML = `<div class="transaction-empty">${message || 'No Stripe transactions found yet. Your successful subscription payments will appear here after checkout.'}</div>`;
+    return;
+  }
+
+  transactionList.innerHTML = transactions.map(item => {
+    const url = item.hosted_invoice_url || item.invoice_pdf || '';
+    const status = String(item.status || 'unknown').toLowerCase();
+    return `
+      <div class="transaction-row">
+        <div class="transaction-main">
+          <div class="transaction-title">${item.number || item.id || 'Stripe invoice'}</div>
+          <div class="transaction-date">${formatInvoiceDate(item.created)}</div>
+        </div>
+        <div class="transaction-amount">${formatMoney(item.amount, item.currency)}</div>
+        <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">
+          <span class="transaction-status ${status}">${status}</span>
+          ${url ? `<a class="transaction-link" href="${url}" target="_blank" rel="noopener noreferrer">View</a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadTransactions() {
+  if (!transactionList) return;
+  transactionList.innerHTML = '<div class="transaction-empty">Loading transactions...</div>';
+  try {
+    const res = await fetch(`${API}/subscription/transactions`, {
+      credentials: 'include',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      renderTransactions([], data.message || data.error || 'Could not load transaction history.');
+      return;
+    }
+    renderTransactions(data.transactions || [], data.message || '');
+  } catch {
+    renderTransactions([], 'Could not load transaction history. Make sure the backend is running.');
+  }
+}
+
+async function loadUser() {
+  try {
+    const res = await fetch(`${API}/auth/me`, { credentials: 'include', headers: authHeaders() });
+    const data = await res.json();
+    if (!data.user) {
+      window.location.href = 'auth.html';
+      return;
+    }
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    renderUser(data.user);
+    loadTransactions();
+  } catch {
+    showNotice('Could not load billing details. Make sure the backend is running.', 'bad');
+  }
+}
+
+async function openBillingPortal() {
+  if (!currentUser?.has_stripe_customer) {
+    showNotice('This account is not linked to Stripe yet. After a real Stripe purchase, this button opens the Stripe billing portal.', 'warn');
+    return;
+  }
+  portalBtn.disabled = true;
+  portalBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening Stripe...';
+  try {
+    const res = await fetch(`${API}/subscription/portal`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showNotice(data.message || data.error || 'Could not open Stripe billing portal.', 'bad');
+      return;
+    }
+    window.location.href = data.url;
+  } catch {
+    showNotice('Network error while opening Stripe billing portal.', 'bad');
+  } finally {
+    portalBtn.disabled = false;
+    portalBtn.innerHTML = '<i class="fas fa-arrow-up-right-from-square"></i> Open Stripe Billing Portal';
+  }
+}
+
+async function devDeactivatePro() {
+  devDeactivateBtn.disabled = true;
+  devDeactivateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deactivating...';
+  try {
+    const res = await fetch(`${API}/subscription/dev-deactivate`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ dev: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showNotice(data.error || 'Dev Pro deactivation failed.', 'bad');
+      return;
+    }
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    renderUser(data.user);
+    loadTransactions();
+    showToast('Dev Pro deactivated. Account is back on Free.', 'ok');
+  } catch {
+    showNotice('Network error while deactivating dev Pro.', 'bad');
+  } finally {
+    devDeactivateBtn.disabled = false;
+    devDeactivateBtn.innerHTML = '<i class="fas fa-rotate-left"></i> Dev Deactivate Pro';
+  }
+}
+
+portalBtn.addEventListener('click', openBillingPortal);
+devDeactivateBtn.addEventListener('click', devDeactivatePro);
+loadUser();
+</script>
+</body>
+</html>

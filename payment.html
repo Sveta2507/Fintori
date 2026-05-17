@@ -319,6 +319,10 @@
     font-weight: 700;
     line-height: 1.5;
   }
+  .dev-bypass .btn {
+    margin-right: 8px;
+    margin-top: 6px;
+  }
   .btn-dev {
     border-color: rgba(245, 158, 11, 0.4);
     background: #fff7ed;
@@ -440,18 +444,18 @@
 <main>
   <div class="payment-layout">
     <section class="panel checkout-panel">
-      <div class="eyebrow"><i class="fas fa-lock"></i> Secure payment by Stripe</div>
-      <h1>Upgrade to Fintori Pro</h1>
-      <p class="lead">Complete your subscription using Stripe Checkout. You will be redirected to Stripe to enter payment details, then returned to Fintori when your subscription is active.</p>
+      <div class="eyebrow" id="paymentEyebrow"><i class="fas fa-lock"></i> Secure payment by Stripe</div>
+      <h1 id="paymentTitle">Upgrade to Fintori Pro</h1>
+      <p class="lead" id="paymentLead">Complete your subscription using Stripe Checkout. You will be redirected to Stripe to enter payment details, then returned to Fintori when your subscription is active.</p>
       <div class="price-line">
         <div class="price">£5</div>
         <span>/ month, cancel anytime</span>
       </div>
       <div class="feature-grid">
-        <div class="feature"><i class="fas fa-check-circle"></i><span>50 AI reports every month</span></div>
-        <div class="feature"><i class="fas fa-check-circle"></i><span>Unlimited PDF exports</span></div>
-        <div class="feature"><i class="fas fa-check-circle"></i><span>Full calculation history</span></div>
-        <div class="feature"><i class="fas fa-check-circle"></i><span>Business Health Score and What-If tools</span></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><span id="aiLimitTile">50 AI reports every month</span></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><span id="pdfLimitTile">Unlimited PDF exports</span></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><span id="historyTile">Full calculation history</span></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><span id="toolsTile">Business Health Score and What-If tools</span></div>
       </div>
       <button class="btn btn-primary" id="checkoutBtn" type="button">
         <i class="fas fa-credit-card"></i> Continue to Stripe Checkout
@@ -462,9 +466,12 @@
       </button>
 
       <div class="dev-bypass" id="devBypassBox">
-        <p>Local development only. Instantly activates Pro for the current account.</p>
+        <p>Local development only. Instantly toggles Pro for the current account.</p>
         <button class="btn btn-dev" id="devBypassBtn" type="button">
           <i class="fas fa-flask"></i> Dev Activate Pro
+        </button>
+        <button class="btn btn-dev" id="devDeactivateBtn" type="button" style="display:none">
+          <i class="fas fa-rotate-left"></i> Dev Deactivate Pro
         </button>
       </div>
 
@@ -505,6 +512,14 @@ const checkoutBtn = document.getElementById('checkoutBtn');
 const billingPortalBtn = document.getElementById('billingPortalBtn');
 const devBypassBox = document.getElementById('devBypassBox');
 const devBypassBtn = document.getElementById('devBypassBtn');
+const devDeactivateBtn = document.getElementById('devDeactivateBtn');
+const paymentEyebrow = document.getElementById('paymentEyebrow');
+const paymentTitle = document.getElementById('paymentTitle');
+const paymentLead = document.getElementById('paymentLead');
+const aiLimitTile = document.getElementById('aiLimitTile');
+const pdfLimitTile = document.getElementById('pdfLimitTile');
+const historyTile = document.getElementById('historyTile');
+const toolsTile = document.getElementById('toolsTile');
 
 function authHeaders(extra = {}) {
   return {
@@ -563,17 +578,10 @@ async function ensureUser() {
     }
 
     sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    applySubscriptionState(data.user);
 
     if (data.user.plan === 'paid') {
-      showNotice('Your account is already on Pro. You can return to the app.', 'ok');
-
-      checkoutBtn.disabled = false;
-      checkoutBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Open Fintori Pro';
-      checkoutBtn.onclick = () => window.location.href = 'app.html';
-
-      if (data.user.has_stripe_customer && billingPortalBtn) {
-        billingPortalBtn.style.display = 'inline-flex';
-      }
+      showToast('Your account is already on Pro. You can return to the app.', 'ok');
     }
 
     return data.user;
@@ -601,8 +609,7 @@ async function confirmReturnedCheckout(sessionId) {
       if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
       sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
       showNotice('Payment confirmed. Your Pro plan is active.', 'ok');
-      checkoutBtn.textContent = 'Open Fintori Pro';
-      checkoutBtn.onclick = () => window.location.href = 'app.html';
+      applySubscriptionState(data.user);
     } else {
       showNotice(`Payment status: ${data.status}. If you just paid, refresh in a moment.`, 'warn');
     }
@@ -612,6 +619,10 @@ async function confirmReturnedCheckout(sessionId) {
 }
 
 async function startCheckout() {
+  if (checkoutBtn.dataset.mode === 'open-app') {
+    window.location.href = 'app.html';
+    return;
+  }
   checkoutBtn.disabled = true;
   checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating secure checkout...';
   try {
@@ -640,6 +651,10 @@ async function startCheckout() {
 }
 
 async function startCheckout() {
+  if (checkoutBtn.dataset.mode === 'open-app') {
+    window.location.href = 'app.html';
+    return;
+  }
   checkoutBtn.disabled = true;
   checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating secure checkout...';
   try {
@@ -698,10 +713,72 @@ async function openBillingPortal() {
 
 checkoutBtn.addEventListener('click', startCheckout);
 if (billingPortalBtn) {
-  billingPortalBtn.addEventListener('click', openBillingPortal);
+  billingPortalBtn.addEventListener('click', () => {
+    window.location.href = 'billing.html';
+  });
 }
 
 checkoutBtn.addEventListener('click', startCheckout);
+
+function applySubscriptionState(user) {
+  if (!user) return;
+  const isPaid = user.plan === 'paid';
+  const isDevBypass = user.stripe_subscription_status === 'dev_bypass';
+  const hasStripeBilling = !!user.has_stripe_customer;
+  const hasRealStripeSubscription = !!user.has_stripe_subscription && !String(user.stripe_subscription_status || '').startsWith('dev_');
+  if (paymentEyebrow) {
+    paymentEyebrow.innerHTML = isPaid
+      ? '<i class="fas fa-circle-check"></i> Pro subscription active'
+      : '<i class="fas fa-lock"></i> Secure payment by Stripe';
+  }
+  if (paymentTitle) {
+    paymentTitle.textContent = isPaid ? 'Thank you for subscribing' : 'Upgrade to Fintori Pro';
+  }
+  if (paymentLead) {
+    paymentLead.textContent = isPaid
+      ? 'Your Pro plan is active. You can manage billing, view your subscription details, or return to the app whenever you are ready.'
+      : 'Complete your subscription using Stripe Checkout. You will be redirected to Stripe to enter payment details, then returned to Fintori when your subscription is active.';
+  }
+  if (aiLimitTile) {
+    aiLimitTile.textContent = isPaid
+      ? `${user.ai_remaining ?? 0} AI reports remaining this month`
+      : `${user.ai_remaining ?? 0} free AI report${(user.ai_remaining ?? 0) === 1 ? '' : 's'} remaining`;
+  }
+  if (pdfLimitTile) {
+    pdfLimitTile.textContent = isPaid
+      ? 'Unlimited PDF exports remaining'
+      : `${user.pdf_remaining ?? 0} free PDF export${(user.pdf_remaining ?? 0) === 1 ? '' : 's'} remaining`;
+  }
+  if (historyTile) {
+    historyTile.textContent = isPaid ? 'Full calculation history unlocked' : 'Calculation history unlocks with Pro';
+  }
+  if (toolsTile) {
+    toolsTile.textContent = isPaid ? 'Business Health Score and What-If tools unlocked' : 'Business Health Score and What-If tools unlock with Pro';
+  }
+
+  if (user.plan === 'paid') {
+    checkoutBtn.dataset.mode = 'open-app';
+    checkoutBtn.disabled = false;
+    checkoutBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Open Fintori Pro';
+    checkoutBtn.onclick = null;
+    if (billingPortalBtn) {
+      billingPortalBtn.style.display = 'inline-flex';
+    }
+  } else {
+    checkoutBtn.dataset.mode = 'checkout';
+    checkoutBtn.disabled = false;
+    checkoutBtn.innerHTML = '<i class="fas fa-credit-card"></i> Continue to Stripe Checkout';
+    checkoutBtn.onclick = null;
+    if (billingPortalBtn) billingPortalBtn.style.display = hasStripeBilling ? 'inline-flex' : 'none';
+  }
+
+  if (devBypassBtn) {
+    devBypassBtn.style.display = (!hasRealStripeSubscription && !isDevBypass) ? 'inline-flex' : 'none';
+  }
+  if (devDeactivateBtn) {
+    devDeactivateBtn.style.display = isDevBypass ? 'inline-flex' : 'none';
+  }
+}
 
 async function devActivatePro() {
   devBypassBtn.disabled = true;
@@ -720,10 +797,8 @@ async function devActivatePro() {
     }
     if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
     sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
-    showNotice('Dev Pro activated. Pro features are now unlocked for this account.', 'ok');
-    checkoutBtn.disabled = true;
-    checkoutBtn.textContent = 'Open Fintori Pro';
-    checkoutBtn.onclick = () => window.location.href = 'app.html';
+    showToast(data.message || 'Dev Pro activated. Pro features are now unlocked for this account.', 'ok');
+    applySubscriptionState(data.user);
   } catch {
     showNotice('Network error while activating dev Pro.', 'bad');
   } finally {
@@ -732,9 +807,37 @@ async function devActivatePro() {
   }
 }
 
+async function devDeactivatePro() {
+  devDeactivateBtn.disabled = true;
+  devDeactivateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deactivating Pro...';
+  try {
+    const res = await fetch(`${API}/subscription/dev-deactivate`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ dev: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showNotice(data.error || 'Dev Pro deactivation failed.', 'bad');
+      return;
+    }
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    showToast(data.message || 'Dev Pro deactivated. Account is back on Free with trial limits reset.', 'ok');
+    applySubscriptionState(data.user);
+  } catch {
+    showNotice('Network error while deactivating dev Pro.', 'bad');
+  } finally {
+    devDeactivateBtn.disabled = false;
+    devDeactivateBtn.innerHTML = '<i class="fas fa-rotate-left"></i> Dev Deactivate Pro';
+  }
+}
+
 if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
   if (devBypassBox) devBypassBox.classList.add('show');
   if (devBypassBtn) devBypassBtn.addEventListener('click', devActivatePro);
+  if (devDeactivateBtn) devDeactivateBtn.addEventListener('click', devDeactivatePro);
 }
 
 (async () => {

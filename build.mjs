@@ -29,6 +29,7 @@ const STATIC_FILES = [
   'auth.html',
   'pricing.html',
   'payment.html',
+  'billing.html',
   'settings.html',
   'terms.html',
   'app.css',

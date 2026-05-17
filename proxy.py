@@ -223,6 +223,7 @@ class User(db.Model):
             'plan':         self.plan,
             'stripe_subscription_status': self.stripe_subscription_status,
             'has_stripe_customer': bool(self.stripe_customer_id),
+            'has_stripe_subscription': bool(self.stripe_subscription_id),
             'ai_remaining': (PAID_AI_LIMIT - self.ai_used_month)
                             if self.plan == 'paid'
                             else max(0, FREE_AI_LIMIT - self.ai_trial_used),
@@ -516,6 +517,7 @@ def auth_me():
     user = _get_auth_user()
     if not user:
         return jsonify({'user': None})
+    _repair_dev_status_for_stripe_user(user)
     token = _issue_session_token(user.id)
     return jsonify({'user': user.to_public_dict(), 'session_token': token})
 
@@ -985,6 +987,51 @@ def _set_user_free_from_stripe(user: User, stripe_subscription_status: str | Non
         user.stripe_subscription_status = stripe_subscription_status
     db.session.commit()
 
+
+def _repair_dev_status_for_stripe_user(user: User):
+    if not user or not user.stripe_customer_id:
+        return
+
+    status = user.stripe_subscription_status or ''
+    needs_repair = (
+        user.plan != 'paid'
+        or status.startswith('dev_')
+        or not user.stripe_subscription_id
+    )
+    if not needs_repair:
+        return
+
+    subscription_id = None
+    subscription_status = None
+
+    if stripe is not None and STRIPE_SECRET_KEY:
+        try:
+            subscriptions = stripe.Subscription.list(
+                customer=user.stripe_customer_id,
+                status='all',
+                limit=10,
+            )
+            candidates = _stripe_value(subscriptions, 'data', []) or []
+            active = next(
+                (s for s in candidates if _stripe_value(s, 'status') in ('active', 'trialing', 'past_due')),
+                None,
+            )
+            selected = active or (candidates[0] if candidates else None)
+            if selected:
+                subscription_id = _stripe_value(selected, 'id')
+                subscription_status = _stripe_value(selected, 'status')
+        except Exception:
+            subscription_id = None
+            subscription_status = None
+
+    if subscription_id:
+        user.plan = 'paid'
+        user.stripe_subscription_id = subscription_id
+        user.stripe_subscription_status = subscription_status or 'active'
+        user.ai_used_month = 0
+        user.ai_reset_month = datetime.now(timezone.utc).strftime('%Y-%m')
+        db.session.commit()
+
 def _stripe_value(obj, key, default=None):
     """
     reads values from StripeObject or dict.
@@ -1176,6 +1223,56 @@ def subscription_portal(user):
     return jsonify({'url': portal_session.url})
 
 
+@app.route('/subscription/transactions', methods=['GET', 'OPTIONS'])
+@require_auth
+def subscription_transactions(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    if user.plan != 'paid':
+        return jsonify({'transactions': [], 'message': 'Free plan has no subscription transactions.'})
+
+    if not user.stripe_customer_id:
+        return jsonify({
+            'transactions': [],
+            'message': 'This account is not linked to Stripe yet.'
+        })
+
+    missing = _stripe_missing_config()
+    if missing:
+        return jsonify({
+            'transactions': [],
+            'message': 'Stripe is not configured on this server.',
+            'missing': missing,
+        }), 503
+
+    try:
+        invoices = stripe.Invoice.list(
+            customer=user.stripe_customer_id,
+            limit=12,
+        )
+    except Exception as e:
+        return jsonify({'error': 'stripe_error', 'message': str(e)}), 502
+
+    transactions = []
+    for invoice in (_stripe_value(invoices, 'data', []) or []):
+        amount_paid = _stripe_value(invoice, 'amount_paid', 0) or 0
+        amount_due = _stripe_value(invoice, 'amount_due', 0) or 0
+        total = _stripe_value(invoice, 'total', None)
+        transactions.append({
+            'id': _stripe_value(invoice, 'id'),
+            'number': _stripe_value(invoice, 'number') or _stripe_value(invoice, 'id'),
+            'created': _stripe_value(invoice, 'created'),
+            'status': _stripe_value(invoice, 'status') or 'unknown',
+            'currency': (_stripe_value(invoice, 'currency') or STRIPE_PRO_CURRENCY).upper(),
+            'amount': amount_paid or total or amount_due or 0,
+            'hosted_invoice_url': _stripe_value(invoice, 'hosted_invoice_url'),
+            'invoice_pdf': _stripe_value(invoice, 'invoice_pdf'),
+        })
+
+    return jsonify({'transactions': transactions})
+
+
 @app.route('/subscription/dev-bypass', methods=['POST', 'OPTIONS'])
 @require_auth
 def dev_bypass_subscription(user):
@@ -1187,10 +1284,68 @@ def dev_bypass_subscription(user):
     if not DEV_PRO_BYPASS or not is_local_request:
         return jsonify({'error': 'Dev Pro bypass is only available locally.'}), 403
 
+    current_status = user.stripe_subscription_status or ''
+    if user.stripe_subscription_id and not current_status.startswith('dev_'):
+        if user.plan != 'paid':
+            user.plan = 'paid'
+            user.ai_used_month = 0
+            user.ai_reset_month = datetime.now(timezone.utc).strftime('%Y-%m')
+            if not user.stripe_subscription_status or user.stripe_subscription_status.startswith('dev_'):
+                user.stripe_subscription_status = 'active'
+            db.session.commit()
+
+        token = _issue_session_token(user.id)
+        return jsonify({
+            'ok': True,
+            'user': user.to_public_dict(),
+            'session_token': token,
+            'message': 'This account is already linked to Stripe, so dev bypass was not applied.',
+        })
+
     user.plan = 'paid'
     user.ai_used_month = 0
     user.ai_reset_month = datetime.now(timezone.utc).strftime('%Y-%m')
     user.stripe_subscription_status = 'dev_bypass'
+    db.session.commit()
+
+    token = _issue_session_token(user.id)
+    return jsonify({'ok': True, 'user': user.to_public_dict(), 'session_token': token})
+
+
+@app.route('/subscription/dev-deactivate', methods=['POST', 'OPTIONS'])
+@require_auth
+def dev_deactivate_subscription(user):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    remote = request.remote_addr or ''
+    is_local_request = remote in ('127.0.0.1', '::1', 'localhost')
+    if not DEV_PRO_BYPASS or not is_local_request:
+        return jsonify({'error': 'Dev Pro deactivation is only available locally.'}), 403
+
+    if user.stripe_subscription_status != 'dev_bypass':
+        if user.stripe_subscription_id:
+            user.plan = 'paid'
+            if not user.stripe_subscription_status or user.stripe_subscription_status.startswith('dev_'):
+                user.stripe_subscription_status = 'active'
+            db.session.commit()
+
+            token = _issue_session_token(user.id)
+            return jsonify({
+                'ok': True,
+                'user': user.to_public_dict(),
+                'session_token': token,
+                'message': 'Real Stripe subscriptions cannot be deactivated with the dev button.',
+            })
+
+        return jsonify({'error': 'Dev Pro is not active for this account.'}), 400
+
+    user.plan = 'free'
+    user.ai_trial_used = 0
+    user.pdf_trial_used = 0
+    user.ai_used_month = 0
+    user.ai_reset_month = datetime.now(timezone.utc).strftime('%Y-%m')
+    user.stripe_subscription_status = 'dev_deactivated'
     db.session.commit()
 
     token = _issue_session_token(user.id)

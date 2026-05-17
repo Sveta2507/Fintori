@@ -433,12 +433,34 @@
 </footer>
 
 <script>
-  const themeToggle = document.getElementById('themeToggle');
   const htmlElement = document.documentElement;
   const savedTheme = localStorage.getItem('theme') || 'light';
 
-  htmlElement.setAttribute('data-theme', savedTheme);
-  updateThemeIcon(savedTheme);
+  function getThemeToggles() {
+    return Array.from(document.querySelectorAll('#themeToggle'));
+  }
+
+  function syncThemeToggles(theme) {
+    const isDark = theme === 'dark';
+    getThemeToggles().forEach(toggle => {
+      toggle.checked = isDark;
+      toggle.setAttribute('aria-checked', String(isDark));
+      const icon = toggle.closest('.switch')?.querySelector('.toggle-icon');
+      if (icon) {
+        icon.classList.toggle('fa-sun', !isDark);
+        icon.classList.toggle('fa-moon', isDark);
+      }
+    });
+  }
+
+  function applyTheme(theme, persist = false) {
+    const selectedTheme = theme === 'dark' ? 'dark' : 'light';
+    htmlElement.setAttribute('data-theme', selectedTheme);
+    if (persist) localStorage.setItem('theme', selectedTheme);
+    syncThemeToggles(selectedTheme);
+  }
+
+  applyTheme(savedTheme);
 
   // Show Sign In / Sign Out based on session
   let currentUser = null;
@@ -535,27 +557,16 @@
           <a href="auth.html" class="index-auth-btn index-auth-btn-ghost" style="min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;margin-left:10px;border-radius:8px;border:1.5px solid rgba(18,32,58,.18);background:#fff;color:#12203a;font-size:14px;font-weight:800;line-height:1;text-decoration:none;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.06)">Sign In</a>
           <a href="auth.html?tab=register" class="index-auth-btn index-auth-btn-primary" style="min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;margin-left:12px;border-radius:8px;border:1.5px solid transparent;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:14px;font-weight:800;line-height:1;text-decoration:none;white-space:nowrap;box-shadow:0 10px 22px rgba(37,99,235,.18)">Get Started</a>
           `;
+        applyTheme(localStorage.getItem('theme') || 'light');
 
       }
     } catch {}
   })();
 
-  themeToggle.addEventListener('change', () => {
-    const nextTheme = themeToggle.checked ? 'dark' : 'light';
-    htmlElement.setAttribute('data-theme', nextTheme);
-    localStorage.setItem('theme', nextTheme);
-    updateThemeIcon(nextTheme);
+  document.addEventListener('change', event => {
+    if (event.target?.id !== 'themeToggle') return;
+    applyTheme(event.target.checked ? 'dark' : 'light', true);
   });
-
-  function updateThemeIcon(theme) {
-    themeToggle.checked = theme === 'dark';
-    themeToggle.setAttribute('aria-checked', String(theme === 'dark'));
-    const icon = document.querySelector('.toggle-icon');
-    if (icon) {
-      icon.classList.toggle('fa-sun', theme !== 'dark');
-      icon.classList.toggle('fa-moon', theme === 'dark');
-    }
-  }
 
   const scrollSections = document.querySelectorAll('.scroll-panel');
 

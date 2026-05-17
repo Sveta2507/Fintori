@@ -141,6 +141,11 @@
     box-shadow: 0 0 0 4px rgba(37,99,235,.08);
   }
 
+  .plan-card.current-plan {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34,197,94,.12), 0 14px 30px rgba(34,197,94,.08);
+  }
+
   .plan-badge {
     position: absolute;
     top: -12px;
@@ -154,6 +159,25 @@
     border-radius: 20px;
     letter-spacing: .5px;
     text-transform: uppercase;
+  }
+
+  .current-badge {
+    display: none;
+    position: absolute;
+    top: -12px;
+    right: 22px;
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 14px;
+    border-radius: 20px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+
+  .plan-card.current-plan .current-badge {
+    display: inline-flex;
   }
 
   .plan-name {
@@ -308,6 +332,10 @@
     border-color: #60a5fa;
     box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.14), 0 18px 40px rgba(0, 0, 0, 0.24);
   }
+  [data-theme="dark"] .plan-card.current-plan {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14), 0 18px 40px rgba(0, 0, 0, 0.24);
+  }
   [data-theme="dark"] .plan-name,
   [data-theme="dark"] .fi-no {
     color: #94a3b8;
@@ -359,7 +387,8 @@
   <div class="plans-grid">
 
     <!-- FREE -->
-    <div class="plan-card">
+    <div class="plan-card" data-plan-card="free">
+      <div class="current-badge">Current Plan</div>
       <div class="plan-name">Free</div>
       <div class="plan-price">£0 <span>/ forever</span></div>
       <div class="plan-desc">All core calculations, no signup to a paywall. Full access to everything that matters.</div>
@@ -376,14 +405,15 @@
         <li><i class="fas fa-times-circle fi-no"></i> Business Health Score</li>
         <li><i class="fas fa-times-circle fi-no"></i> What-If scenario tool</li>
       </ul>
-      <button class="btn-plan btn-plan-free" onclick="window.location.href='app.html'">
+      <button class="btn-plan btn-plan-free" id="freePlanBtn" onclick="window.location.href='app.html'">
         Continue with Free
       </button>
     </div>
 
     <!-- PRO -->
-    <div class="plan-card featured">
+    <div class="plan-card featured" data-plan-card="paid">
       <div class="plan-badge">Most Popular</div>
+      <div class="current-badge">Current Plan</div>
       <div class="plan-name">Pro</div>
       <div class="plan-price">£5 <span>/ month</span></div>
       <div class="plan-desc">Everything in Free, plus AI insights, unlimited exports, and tools that help you grow.</div>
@@ -400,7 +430,7 @@
         <li><i class="fas fa-check-circle fi-yes"></i> Business Health Score</li>
         <li><i class="fas fa-check-circle fi-yes"></i> What-If scenario tool</li>
       </ul>
-      <button class="btn-plan btn-plan-paid" onclick="goToPay()">
+      <button class="btn-plan btn-plan-paid" id="proPlanBtn" onclick="goToPay()">
         <i class="fas fa-arrow-right"></i> Subscribe for £5/month
       </button>
     </div>
@@ -414,6 +444,68 @@
 
 <script>
 document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
+
+const API = window.FINTORI_API_BASE
+  ? String(window.FINTORI_API_BASE).replace(/\/+$/, '')
+  : ['5500', '8000'].includes(window.location.port)
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : window.location.origin;
+
+let currentUser = JSON.parse(sessionStorage.getItem('fintori_user') || 'null');
+
+function authHeaders(extra = {}) {
+  return {
+    ...extra,
+    'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '',
+  };
+}
+
+function markCurrentPlan(user) {
+  document.querySelectorAll('[data-plan-card]').forEach(card => {
+    card.classList.toggle('current-plan', !!user && card.dataset.planCard === user.plan);
+  });
+
+  const freeBtn = document.getElementById('freePlanBtn');
+  const proBtn = document.getElementById('proPlanBtn');
+  if (!freeBtn || !proBtn) return;
+
+  freeBtn.disabled = false;
+  proBtn.disabled = false;
+  freeBtn.textContent = 'Continue with Free';
+  proBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Subscribe for £5/month';
+
+  if (!user) return;
+
+  if (user.plan === 'free') {
+    freeBtn.textContent = 'Current Free Plan';
+    proBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Upgrade to Pro';
+  } else if (user.plan === 'paid') {
+    freeBtn.textContent = 'Free Plan';
+    proBtn.innerHTML = '<i class="fas fa-check"></i> Current Pro Plan';
+  }
+}
+
+async function loadCurrentPlan() {
+  markCurrentPlan(currentUser);
+  try {
+    const res = await fetch(`${API}/auth/me`, {
+      credentials: 'include',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!data.user) {
+      currentUser = null;
+      markCurrentPlan(null);
+      return;
+    }
+    currentUser = data.user;
+    sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
+    if (data.session_token) sessionStorage.setItem('fintori_auth_token', data.session_token);
+    markCurrentPlan(data.user);
+  } catch {
+    markCurrentPlan(currentUser);
+  }
+}
 
 function ensureToastStack() {
   let stack = document.querySelector('.toast-stack');
@@ -440,14 +532,19 @@ function showToast(message) {
 }
 
 function goToPay() {
-  const user = JSON.parse(sessionStorage.getItem('fintori_user') || 'null');
-  if (!user) {
+  if (!currentUser) {
     showToast('Create an account or sign in before subscribing.');
     setTimeout(() => { window.location.href = 'auth.html?tab=register'; }, 900);
     return;
   }
+  if (currentUser.plan === 'paid') {
+    window.location.href = 'billing.html';
+    return;
+  }
   window.location.href = 'payment.html';
 }
+
+loadCurrentPlan();
 </script>
 </body>
 </html>
