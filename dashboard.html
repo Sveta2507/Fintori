@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fintori - Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root { --base:#1f4db8; --ink:#12203a; --muted:#717580; --line:#e5e7eb; --bg:#f7f7f7; --panel:#fff; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --font:"Inter",sans-serif; --alt:"Plus Jakarta Sans",sans-serif; }
+  @font-face { font-family:"Allura"; src:url("fonts/Allura-Regular.ttf") format("truetype"); font-weight:400; font-style:normal; font-display:swap; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,
+  body {
+    overflow-x: hidden;
+  }
+  body { min-height:100vh; font-family:var(--font); background:var(--bg); color:var(--ink); }
+
+  header { min-height:74px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 28px; background:var(--bg); box-shadow:0 4px 12px rgba(15,23,42,.06); position:sticky; top:0; z-index:10; }
+  .brand { display:flex; align-items:baseline; gap:6px; text-decoration:none; }
+  .header-left { display:flex; align-items:center; gap:12px; min-width:0; }
+  .logo-name { font-family:var(--alt); font-size:28px; font-weight:800; background:linear-gradient(135deg,#2563eb,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent; }
+  .logo-tag { font-family:"Allura",cursive; font-size:20px; line-height:1; color:rgba(18,32,58,.78); }
+  .header-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .icon-btn { width:50px; min-width:50px; min-height:50px; padding:0; font-size:20px; }
+  .header-left .icon-btn { border-color:transparent; background:transparent; box-shadow:none; }
+  .header-left .icon-btn:hover { background:#eef4ff; color:var(--base); }
+  .hdr-user-chip { display:inline-flex; align-items:center; gap:10px; min-height:46px; padding:5px 12px 5px 6px; border:1.5px solid rgba(18,32,58,.12); border-radius:999px; background:rgba(255,255,255,.92); box-shadow:0 8px 18px rgba(15,23,42,.06); cursor:pointer; font-family:var(--font); text-align:left; transition:.2s; }
+  .hdr-user-chip:hover { border-color:rgba(31,77,184,.32); transform:translateY(-1px); box-shadow:0 12px 24px rgba(15,23,42,.1); }
+  .hdr-user-avatar { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 36px; border-radius:50%; background:#a3a3a3; color:#f5f5f5; font-size:17px; }
+  .hdr-user-name { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:800; color:var(--ink); }
+  .btn { min-height:42px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 18px; border-radius:8px; border:1.5px solid rgba(18,32,58,.14); background:#fff; color:var(--ink); font:800 14px var(--font); text-decoration:none; cursor:pointer; }
+  .btn-primary { border-color:transparent; color:#fff; background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 10px 22px rgba(37,99,235,.18); }
+  main {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 30px clamp(22px,3vw,46px) 56px;
+    min-width: 0;
+  }
+
+  .dash-head {
+    min-height:340px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    margin-bottom:24px;
+    padding:32px;
+    border:1px solid rgba(31,77,184,.1);
+    border-radius:10px;
+    background:
+      linear-gradient(90deg, rgba(7,14,31,.82), rgba(15,23,42,.48)),
+      url("images/analytics.jpg") center/cover;
+    box-shadow:0 18px 42px rgba(31,77,184,.1);
+    color:#fff;
+  }
+  .dash-head .subtle { color:rgba(255,255,255,.82); font-size:17px; font-weight:700; }
+  .eyebrow { display:inline-flex; align-items:center; gap:8px; min-height:30px; padding:0 11px; border-radius:999px; background:#eef4ff; color:var(--base); font-size:12px; font-weight:800; }
+  h1 { margin-top:14px; font-family:var(--alt); font-size:clamp(46px,5.4vw,76px); line-height:.98; letter-spacing:0; }
+  h2 { font-size:22px; margin-bottom:8px; }
+  .subtle { color:var(--muted); line-height:1.7; font-size:14px; }
+  .grid { display:grid; gap:18px; }
+  .top-grid { grid-template-columns:minmax(0,1.2fr) minmax(460px,.8fr); align-items:stretch; width:100%; }
+  .stats-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .insight-grid { grid-template-columns:1fr 1fr; width:100%; }
+  .panel { width:100%; background:var(--panel); border:1px solid rgba(31,77,184,.1); border-radius:10px; padding:26px; box-shadow:0 14px 34px rgba(31,77,184,.08); }
+  .stat { min-height:148px; padding:24px; }
+  .stat-label { color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; }
+  .stat-value { margin-top:12px; font-size:clamp(30px,2.7vw,42px); font-weight:800; }
+  .stat-note { margin-top:8px; color:var(--muted); font-size:13px; line-height:1.5; }
+  .health-wrap { display:grid; grid-template-columns:230px 1fr; gap:30px; align-items:center; margin-top:24px; }
+  .score-ring { width:220px; aspect-ratio:1; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--score-color,#22c55e) calc(var(--score,0)*1%), #e5e7eb 0); position:relative; }
+  .score-ring::after { content:""; position:absolute; inset:16px; border-radius:50%; background:var(--panel); }
+  .score-copy { position:relative; z-index:1; text-align:center; }
+  .score-num { font-size:56px; font-weight:800; color:var(--score-color,#22c55e); }
+  .score-label { color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; }
+  .health-bars { display:grid; gap:15px; }
+  .bar-row { display:grid; grid-template-columns:150px 1fr 38px; gap:12px; align-items:center; }
+  .bar-name { font-size:13px; font-weight:800; }
+  .bar-track { height:10px; border-radius:999px; background:#e5e7eb; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:999px; background:var(--ok); }
+  .bar-val { font-size:12px; font-weight:800; text-align:right; }
+  .chart { min-height:342px; }
+  .chart svg { width:100%; height:278px; display:block; overflow:visible; }
+  .chart-axis { stroke:#d1d5db; stroke-width:1; }
+  .chart-line { fill:none; stroke:#2563eb; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .chart-area { fill:url(#areaBlue); opacity:.42; }
+  .mini-bars { display:grid; gap:12px; margin-top:16px; }
+  .mini-row { display:grid; grid-template-columns:118px 1fr auto; gap:10px; align-items:center; font-size:13px; font-weight:700; }
+  .mini-track { height:10px; border-radius:999px; background:#e5e7eb; overflow:hidden; }
+  .mini-fill { height:100%; border-radius:999px; background:linear-gradient(135deg,#2563eb,#7c3aed); }
+  .what-if { display:grid; gap:16px; }
+  .slider-row { display:grid; gap:8px; }
+  .slider-top { display:flex; justify-content:space-between; gap:12px; font-size:13px; font-weight:800; }
+  input[type=range] { width:100%; accent-color:#2563eb; }
+  .scenario-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+  .scenario { border:1px solid var(--line); border-radius:8px; padding:16px; background:#fbfdff; }
+  .scenario-label { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; }
+  .scenario-value { margin-top:7px; font-size:22px; font-weight:800; }
+  .scenario-delta { margin-top:4px; font-size:12px; font-weight:800; }
+  .action-list { display:grid; gap:10px; margin-top:14px; }
+  .action { display:flex; gap:10px; align-items:flex-start; padding:12px; border-radius:8px; background:#fbfdff; border:1px solid var(--line); font-size:13px; line-height:1.55; }
+  .dot { width:10px; height:10px; border-radius:50%; margin-top:5px; flex:0 0 10px; background:var(--ok); }
+  .dot.warn { background:var(--warn); } .dot.bad { background:var(--bad); }
+  .empty { text-align:center; padding:58px 24px; }
+  .empty i { font-size:44px; color:var(--base); margin-bottom:14px; }
+  .hidden { display:none !important; }
+  .account-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,.34);
+    opacity: 0;
+    pointer-events: none;
+    transition: .22s;
+    z-index: 80;
+  }
+
+  .account-backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .account-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: min(360px, calc(100vw - 36px));
+    background: var(--panel);
+    z-index: 90;
+    box-shadow: 0 24px 60px rgba(15,23,42,.22);
+    transition: transform .26s ease;
+    right: 0;
+    transform: translateX(105%);
+  }
+
+  .account-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .dashboard-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 22vw) minmax(0, 1fr);
+    gap: 0;
+    width: 100%;
+    min-height: calc(100vh - 74px);
+    align-items: start;
+  }
+
+  .history-sidebar {
+    position: sticky;
+    top: 74px;
+    width: 100%;
+    min-width: 0;
+    min-height: calc(100vh - 74px);
+    height: 100%;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 5;
+  }
+
+
+  .account-sidebar-head, .history-sidebar-hdr { min-height:88px; display:flex; align-items:center; gap:14px; padding:22px; border-bottom:1px solid var(--line); }
+  .account-avatar { width:54px; height:54px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#a3a3a3; color:#f8fafc; font-size:25px; flex:0 0 54px; }
+  .account-kicker { color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; }
+  .account-name { margin-top:3px; font-size:18px; font-weight:800; }
+  .account-nav { display:grid; gap:4px; padding:12px; }
+  .account-theme-row, .account-nav a, .account-logout { min-height:46px; display:flex; align-items:center; gap:12px; padding:0 12px; border:0; border-radius:8px; background:transparent; color:var(--ink); font:800 14px var(--font); text-decoration:none; cursor:pointer; text-align:left; }
+  .account-theme-row { justify-content:space-between; cursor:default; }
+  .account-theme-row > span { display:flex; align-items:center; gap:12px; }
+  .account-nav a:hover, .account-logout:hover { background:#eef4ff; color:var(--base); }
+  .account-nav i { width:18px; text-align:center; }
+  .account-sidebar .switch { position:relative; display:inline-block; width:60px; height:34px; flex:0 0 60px; }
+  .account-sidebar .switch input { opacity:0; width:0; height:0; }
+  .account-sidebar .switch .slider { position:absolute; cursor:pointer; inset:0; background-color:#ccc; transition:.4s; }
+  .account-sidebar .switch .slider:before { position:absolute; content:""; height:26px; width:26px; left:4px; bottom:4px; background-color:#fff; transition:.4s; box-shadow:0 3px 8px rgba(15,23,42,.24); }
+  .account-sidebar .switch .toggle-icon { position:absolute; left:4px; bottom:4px; z-index:1; width:26px; height:26px; display:grid; place-items:center; color:#f59e0b; font-size:13px; pointer-events:none; transition:.4s; }
+  .account-sidebar .switch input:checked + .slider { background-color:#2196F3; }
+  .account-sidebar .switch input:checked + .slider:before { transform:translateX(26px); }
+  .account-sidebar .switch input:checked ~ .toggle-icon { color:#1e3a8a; transform:translateX(26px); }
+  .account-sidebar .switch .slider.round { border-radius:34px; }
+  .account-sidebar .switch .slider.round:before { border-radius:50%; }
+  .account-logout { margin:12px; color:#dc3131; width:calc(100% - 24px); }
+  .history-sidebar-hdr { justify-content:space-between; font-weight:800; }
+  .history-plan-note { color:var(--muted); font-size:12px; }
+  .history-list {
+    padding: 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: grid;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .history-item {
+    width: 100%;
+    min-height:62px;
+    display:grid;
+    grid-template-columns:34px 1fr;
+    align-items:center;
+    gap:10px;
+    padding:10px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .history-empty { padding:18px; color:var(--muted); text-align:center; font-size:13px; line-height:1.6; }
+  .history-item {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 62px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .history-item:hover { background:#eef4ff; }
+  .history-item-num { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; background:#eef4ff; color:var(--base); font-size:12px; font-weight:800; }
+  .history-item-label { font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .history-item-date { margin-top:3px; color:var(--muted); font-size:12px; font-weight:700; }
+  .history-sidebar,
+  .history-sidebar * {
+    scrollbar-width: thin;
+  }
+
+  .history-sidebar {
+    overflow-x: hidden;
+  }
+  [data-theme="dark"] { color-scheme:dark; }
+  [data-theme="dark"] body { background:#0f172a; color:#e2e8f0; }
+  [data-theme="dark"] header { background:linear-gradient(135deg,#0b162c 0%,#13233f 100%); box-shadow:0 4px 16px rgba(0,0,0,.28); }
+  [data-theme="dark"] .logo-name { background:linear-gradient(135deg,#60a5fa,#c084fc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent; }
+  [data-theme="dark"] .logo-tag { color:rgba(255,255,255,.82); }
+  [data-theme="dark"] .panel { background:#111c32; border-color:rgba(255,255,255,.1); box-shadow:0 18px 40px rgba(0,0,0,.24); }
+  [data-theme="dark"] .dash-head { background:linear-gradient(90deg,rgba(2,6,23,.88),rgba(15,23,42,.56)),url("images/analytics.jpg") center/cover; border-color:rgba(255,255,255,.1); box-shadow:0 18px 40px rgba(0,0,0,.24); }
+  [data-theme="dark"] .subtle, [data-theme="dark"] .stat-label, [data-theme="dark"] .stat-note, [data-theme="dark"] .score-label, [data-theme="dark"] .scenario-label { color:#94a3b8; }
+  [data-theme="dark"] .btn, [data-theme="dark"] .scenario, [data-theme="dark"] .action { background:#0b162c; border-color:rgba(255,255,255,.14); color:#e2e8f0; }
+  [data-theme="dark"] .header-left .icon-btn { background:transparent; border-color:transparent; }
+  [data-theme="dark"] .header-left .icon-btn:hover { background:rgba(96,165,250,.14); color:#93c5fd; }
+  [data-theme="dark"] .hdr-user-chip { background:#0b162c; border-color:rgba(255,255,255,.14); color:#e2e8f0; }
+  [data-theme="dark"] .hdr-user-name { color:#e2e8f0; }
+  [data-theme="dark"] .btn-primary { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; border-color:transparent; }
+  [data-theme="dark"] .bar-track, [data-theme="dark"] .mini-track { background:#26344f; }
+  [data-theme="dark"] .score-ring::after { background:#111c32; }
+  [data-theme="dark"] .eyebrow { background:rgba(96,165,250,.14); color:#93c5fd; }
+  [data-theme="dark"] .account-sidebar,
+  [data-theme="dark"] .history-sidebar {
+    background: #111c32;
+    color: #e2e8f0;
+  }
+
+[data-theme="dark"] .history-sidebar {
+  border-right-color: rgba(255,255,255,.1);
+}
+
+  [data-theme="dark"] .history-sidebar-hdr {
+    color: #e2e8f0;
+    border-bottom-color: rgba(255,255,255,.1);
+  }
+
+  [data-theme="dark"] .history-plan-note,
+  [data-theme="dark"] .history-empty,
+  [data-theme="dark"] .history-item-date {
+    color: #94a3b8;
+  }
+
+  [data-theme="dark"] .history-item-label {
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .history-item:hover {
+    background: rgba(96,165,250,.14);
+    color: #93c5fd;
+  }
+
+  [data-theme="dark"] .history-item-num {
+    background: rgba(96,165,250,.14);
+    color: #93c5fd;
+  }
+  [data-theme="dark"] .account-sidebar-head, [data-theme="dark"] .history-sidebar-hdr { border-bottom-color:rgba(255,255,255,.1); }
+  [data-theme="dark"] .account-kicker {
+    color: #94a3b8;
+  }
+
+  [data-theme="dark"] .account-name,
+  [data-theme="dark"] .account-theme-row,
+  [data-theme="dark"] .account-nav a,
+  [data-theme="dark"] .account-logout {
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .account-theme-row,
+  [data-theme="dark"] .account-nav a,
+  [data-theme="dark"] .account-logout {
+    background: transparent;
+  }
+
+  [data-theme="dark"] .account-avatar {
+    background: #94a3b8;
+    color: #0f172a;
+  }
+  [data-theme="dark"] .account-nav a:hover, [data-theme="dark"] .account-logout:hover, [data-theme="dark"] .history-item:hover { background:rgba(96,165,250,.14); color:#93c5fd; }
+  @media (max-width:1100px) { .top-grid, .insight-grid { grid-template-columns:1fr; } .stats-grid, .scenario-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .health-wrap { grid-template-columns:1fr; } }
+  @media (max-width:620px) { header, .dash-head { align-items:flex-start; flex-direction:column; } .dash-head { padding:24px; min-height:auto; } main { padding:22px 16px 42px; } .stats-grid, .scenario-grid { grid-template-columns:1fr; } .bar-row { grid-template-columns:1fr; } .score-ring { width:180px; }
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    background: var(--panel);
+  }
+
+  .history-sidebar {
+    position: relative;
+    top: auto;
+    width: 100%;
+    min-height: 100%;
+    height: auto;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 0;
+    background: var(--panel);
+  }
+}
+</style>
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');</script>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <a class="brand" href="index.html"><span class="logo-name">Fintori</span><span class="logo-tag">Financial Assistant</span></a>
+  </div>
+  <div class="header-actions">
+    <button class="hdr-user-chip" type="button" onclick="toggleAccountSidebar()" aria-label="Open account menu">
+      <span class="hdr-user-avatar" aria-hidden="true"><i class="fas fa-user"></i></span>
+      <span class="hdr-user-name" id="headerUserName">Account</span>
+    </button>
+  </div>
+</header>
+
+<div class="account-backdrop" id="accountBackdrop" onclick="closeAccountSidebar()"></div>
+<aside class="account-sidebar" id="accountSidebar">
+  <div class="account-sidebar-head">
+    <span class="account-avatar" aria-hidden="true"><i class="fas fa-user"></i></span>
+    <div>
+      <div class="account-kicker">Welcome back</div>
+      <div class="account-name" id="accountSidebarName">Your account</div>
+    </div>
+  </div>
+  <nav class="account-nav" aria-label="Account navigation">
+    <div class="account-theme-row">
+      <span><i class="fas fa-circle-half-stroke"></i> Theme</span>
+      <label class="switch" title="Toggle dark mode" aria-label="Toggle dark mode">
+        <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
+        <span class="slider round" aria-hidden="true"></span>
+        <i class="fas fa-sun toggle-icon" aria-hidden="true"></i>
+      </label>
+    </div>
+    <a href="app.html"><i class="fas fa-calculator"></i><span>Open App</span></a>
+    <a href="settings.html"><i class="fas fa-gear"></i><span>Settings</span></a>
+    <a href="pricing.html"><i class="fas fa-tags"></i><span>Pricing & Plans</span></a>
+    <a href="payment.html"><i class="fas fa-credit-card"></i><span>Payment</span></a>
+    <a href="terms.html"><i class="fas fa-file-contract"></i><span>Terms</span></a>
+    <a href="index.html"><i class="fas fa-house"></i><span>Main Page</span></a>
+  </nav>
+  <button class="account-logout" type="button" onclick="logoutUser()">
+    <i class="fas fa-right-from-bracket"></i><span>Sign out</span>
+  </button>
+</aside>
+
+<div class="dashboard-layout">
+  <aside class="history-sidebar" id="historySidebar">
+    <div class="history-sidebar-hdr">
+      <span><i class="fas fa-clock-rotate-left"></i> History</span>
+      <span id="historyPlanNote" class="history-plan-note"></span>
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">No calculations yet.<br>Your results will appear here.</div>
+    </div>
+  </aside>
+
+  <main>
+    <section class="dash-head">
+      <div>
+        <div class="eyebrow"><i class="fas fa-gauge-high"></i> Business dashboard</div>
+        <h1 id="dashTitle">Welcome back</h1>
+        <p class="subtle" id="dashSubtitle">Loading your latest business analysis...</p>
+      </div>
+      <a class="btn btn-primary" href="app.html"><i class="fas fa-plus"></i> Run New Calculation</a>
+    </section>
+
+    <section class="panel empty hidden" id="emptyState">
+      <i class="fas fa-chart-line"></i>
+      <h2>No dashboard data yet</h2>
+      <p class="subtle">Run your first calculation to unlock health scoring, smart stats, charts, and What-If planning.</p>
+      <div style="margin-top:18px"><a class="btn btn-primary" href="app.html">Start Analysis</a></div>
+    </section>
+
+    <section id="dashboardContent" class="grid hidden">
+      <div class="grid top-grid">
+        <section class="panel">
+          <h2>Business Health Score</h2>
+          <p class="subtle">A weighted view of margin, cash resilience, working capital, debt load, and revenue direction.</p>
+          <div class="health-wrap">
+            <div class="score-ring" id="scoreRing"><div class="score-copy"><div class="score-num" id="healthScore">0</div><div class="score-label" id="healthLabel">Checking</div></div></div>
+            <div class="health-bars" id="healthBars"></div>
+          </div>
+        </section>
+        <section class="panel chart">
+          <h2>Revenue & Profit Shape</h2>
+          <p class="subtle">Latest monthly baseline from your saved calculation.</p>
+          <div id="trendChart"></div>
+        </section>
+      </div>
+
+      <section class="grid stats-grid" id="statGrid"></section>
+
+      <div class="grid insight-grid">
+        <section class="panel">
+          <h2>Cost Pressure</h2>
+          <p class="subtle">Largest monthly costs and how much of your spend they consume.</p>
+          <div class="mini-bars" id="costBars"></div>
+        </section>
+        <section class="panel no-print">
+          <h2>What-If Planner</h2>
+          <p class="subtle">Move the sliders to preview how changing key values would affect revenue, profit, margin, and runway. This tool is intentionally excluded from PDF reports.</p>
+          <div class="what-if" id="whatIfControls"></div>
+          <div class="scenario-grid" id="whatIfResults"></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Smart Next Moves</h2>
+        <p class="subtle">Priority suggestions from the latest numbers.</p>
+        <div class="action-list" id="actions"></div>
+      </section>
+    </section>
+  </main>
+  </div>
+
+<script>
+const API = window.FINTORI_API_BASE ? String(window.FINTORI_API_BASE).replace(/\/+$/, '') : ['5500','8000'].includes(window.location.port) ? `${window.location.protocol}//${window.location.hostname}:5000` : window.location.origin;
+const urlParams = new URLSearchParams(window.location.search);
+const authToken = urlParams.get('auth_token');
+if (authToken) {
+  sessionStorage.setItem('fintori_auth_token', authToken);
+  const clean = new URL(window.location.href);
+  clean.searchParams.delete('auth_token');
+  history.replaceState(null, '', clean.toString());
+}
+let currentUser = null;
+let baseData = null;
+let dashboardHistory = [];
+
+function authHeaders(extra = {}) { return { ...extra, 'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '' }; }
+function applyTheme(theme) {
+  const selected = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', selected);
+  localStorage.setItem('theme', selected);
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.checked = selected === 'dark';
+    toggle.setAttribute('aria-checked', String(selected === 'dark'));
+  }
+  const icon = document.querySelector('.toggle-icon');
+  if (icon) {
+    icon.classList.toggle('fa-sun', selected !== 'dark');
+    icon.classList.toggle('fa-moon', selected === 'dark');
+  }
+}
+const money = n => (n < 0 ? '-£' : '£') + Math.round(Math.abs(Number(n) || 0)).toLocaleString('en-GB');
+const pct = n => ((Number(n) || 0) * 100).toFixed(1) + '%';
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const BM={
+  hospitality:{gross:.25,net:.055,label:'Hospitality / Food & Drink',stockDays:14,debtDays:21},
+  retail:{gross:.35,net:.04,label:'Retail - Physical',stockDays:45,debtDays:30},
+  ecommerce:{gross:.40,net:.085,label:'Retail - E-commerce',stockDays:30,debtDays:14},
+  construction:{gross:.20,net:.06,label:'Construction',stockDays:60,debtDays:45},
+  professional:{gross:.60,net:.20,label:'Professional Services',stockDays:null,debtDays:30},
+  it:{gross:.65,net:.17,label:'IT / Technology',stockDays:null,debtDays:30},
+  health:{gross:.50,net:.115,label:'Health & Beauty',stockDays:30,debtDays:21},
+  manufacturing:{gross:.325,net:.07,label:'Manufacturing',stockDays:60,debtDays:45},
+  transport:{gross:.20,net:.05,label:'Transport & Logistics',stockDays:null,debtDays:30},
+  education:{gross:.525,net:.15,label:'Education / Training',stockDays:null,debtDays:30},
+  finance:{gross:.70,net:.275,label:'Financial Services',stockDays:null,debtDays:21},
+  other:{gross:.375,net:.088,label:'Other / Mixed',stockDays:45,debtDays:30},
+};
+
+function healthModel(d) {
+  const scores = [
+    { name:'Net Margin', w:25, s:d.netMgn >= .10 ? 100 : d.netMgn >= .05 ? 60 : d.netMgn >= 0 ? 30 : 0 },
+    { name:'Gross Margin', w:20, s:d.grossMgn >= .35 ? 100 : d.grossMgn >= .20 ? 65 : d.grossMgn >= .15 ? 35 : 0 },
+    { name:'Cash Runway', w:20, s:d.runway == null ? 70 : d.runway >= 3 ? 100 : d.runway >= 1 ? 50 : 0 },
+    { name:'Working Capital', w:15, s:d.wcr == null ? 70 : d.wcr >= 1.5 ? 100 : d.wcr >= 1 ? 55 : 0 },
+    { name:'Debt Load', w:10, s:(d.debtRatio || 0) <= 3 ? 100 : d.debtRatio <= 6 ? 50 : 0 },
+    { name:'Revenue Trend', w:10, s:(d.revGrowth || 0) > 0 ? 100 : d.revGrowth === 0 ? 60 : 20 },
+  ];
+  const score = Math.round(scores.reduce((a, s) => a + s.s * s.w / 100, 0));
+  return { score, scores, color: score >= 70 ? '#22c55e' : score >= 45 ? '#f59e0b' : '#ef4444', label: score >= 70 ? 'Healthy' : score >= 45 ? 'Needs Attention' : 'At Risk' };
+}
+
+function normaliseSummary(summary) {
+  if (summary.inputs) return calculateFromInputs(summary.inputs);
+  const d = summary.verdict_data || summary;
+  const monthlyProfit = d.totProfit != null ? d.totProfit / 3 : (d.avgRev || 0) - (d.totalCostsM || 0);
+  return {
+    ...d,
+    avgRev: Number(d.avgRev || 0),
+    totalCostsM: Number(d.totalCostsM || 0),
+    totProfit: Number(d.totProfit != null ? d.totProfit : monthlyProfit * 3),
+    netMgn: Number(d.netMgn || 0),
+    grossMgn: Number(d.grossMgn || 0),
+    runway: d.runway == null ? null : Number(d.runway),
+    wcr: d.wcr == null ? null : Number(d.wcr),
+    debtRatio: Number(d.debtRatio || 0),
+    revGrowth: Number(d.revGrowth || 0),
+    cash: Number(d.cash || 0),
+    cogsM: Number(d.cogsM || 0),
+    sector: d.sector || 'other',
+    costMap: Array.isArray(d.costMap) ? d.costMap : [],
+  };
+}
+
+function calculateFromInputs(inputs) {
+  const n = id => Number(inputs[id] || 0);
+  const vat = inputs.vatReg ? 1.2 : 1;
+  const r1=n('r1')/vat, r2=n('r2')/vat, r3=n('r3')/vat;
+  const totRev=r1+r2+r3, avgRev=totRev/3;
+  const cogsM=n('cogs')+n('dlab');
+  const opexM=n('rent')+n('wages')+n('nic')+n('loan')+n('util')+n('ins')+n('mkt')+n('prof')+n('sw')+n('other');
+  const totalCostsM=cogsM+opexM;
+  const totProfit=totRev-(totalCostsM*3);
+  const netMgn=totRev>0?totProfit/totRev:0;
+  const grossMgn=avgRev>0?(avgRev-cogsM)/avgRev:0;
+  const cash=n('cash'), debt=n('debt'), debtors=n('debtors'), creditors=n('creditors'), stock=n('stock'), emp=n('emp');
+  const runway=totalCostsM>0?cash/totalCostsM:null;
+  const debtRatio=avgRev>0?debt/avgRev:0;
+  const revGrowth=r1>0?(r2-r1)/r1:0;
+  const wcr=(creditors+debt)>0?(cash+debtors)/(creditors+debt):null;
+  const sector=inputs.sector || 'other';
+  const costMap=[
+    ['Rent & Rates',n('rent')],['Staff Wages',n('wages')],['Employer NIC',n('nic')],['Materials/Stock',n('cogs')],
+    ['Direct Labour',n('dlab')],['Utilities',n('util')],['Insurance',n('ins')],['Marketing',n('mkt')],
+    ['Professional',n('prof')],['Software',n('sw')],['Loan Repayments',n('loan')],['Other',n('other')]
+  ].filter(c=>c[1]>0).map(c=>({n:c[0],a:c[1]})).sort((a,b)=>b.a-a.a);
+  return {r1,r2,r3,totRev,avgRev,totProfit,netMgn,grossMgn,cash,debt,debtors,creditors,stock,emp,runway,debtRatio,revGrowth,wcr,totalCostsM,cogsM,opexM,sector,bench:BM[sector]||BM.other,costMap};
+}
+
+function renderHealth(d) {
+  const h = healthModel(d);
+  const ring = document.getElementById('scoreRing');
+  ring.style.setProperty('--score', h.score);
+  ring.style.setProperty('--score-color', h.color);
+  document.getElementById('healthScore').textContent = h.score;
+  document.getElementById('healthLabel').textContent = h.label;
+  document.getElementById('healthBars').innerHTML = h.scores.map(s => {
+    const color = s.s >= 80 ? '#22c55e' : s.s >= 50 ? '#f59e0b' : '#ef4444';
+    return `<div class="bar-row"><div class="bar-name">${s.name}</div><div class="bar-track"><div class="bar-fill" style="width:${s.s}%;background:${color}"></div></div><div class="bar-val" style="color:${color}">${s.s}</div></div>`;
+  }).join('');
+}
+
+function renderStats(d) {
+  const monthlyProfit = d.totProfit / 3;
+  const stats = [
+    ['Monthly Revenue', money(d.avgRev), `${pct(d.revGrowth)} revenue trend`],
+    ['Monthly Profit', money(monthlyProfit), `${pct(d.netMgn)} net margin`],
+    ['Cash Runway', d.runway == null ? 'n/a' : `${d.runway.toFixed(1)} mo`, d.runway == null ? 'Cash not entered' : 'At current cost level'],
+    ['Debt Load', `${d.debtRatio.toFixed(1)}x`, 'Debt vs monthly revenue'],
+  ];
+  document.getElementById('statGrid').innerHTML = stats.map(s => `<div class="panel stat"><div class="stat-label">${s[0]}</div><div class="stat-value">${s[1]}</div><div class="stat-note">${s[2]}</div></div>`).join('');
+}
+
+function renderTrend(d) {
+  const rev = [d.avgRev * .92, d.avgRev * (1 + (d.revGrowth || 0) / 2), d.avgRev];
+  const profit = rev.map(r => r - d.totalCostsM);
+  const max = Math.max(...rev, ...profit.map(v => Math.max(v, 0)), 1);
+  const pts = rev.map((v, i) => `${40 + i * 150},${190 - (v / max) * 150}`).join(' ');
+  const ppts = profit.map((v, i) => `${40 + i * 150},${190 - (Math.max(v, 0) / max) * 150}`).join(' ');
+  document.getElementById('trendChart').innerHTML = `<svg viewBox="0 0 350 220" role="img" aria-label="Revenue and profit trend">
+    <defs><linearGradient id="areaBlue" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#2563eb" stop-opacity="0"/></linearGradient></defs>
+    <line class="chart-axis" x1="28" y1="190" x2="340" y2="190"/><line class="chart-axis" x1="28" y1="28" x2="28" y2="190"/>
+    <polyline class="chart-line" points="${pts}"/><polyline points="${ppts}" fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+    <text x="40" y="214" font-size="11" fill="#717580">M1</text><text x="190" y="214" font-size="11" fill="#717580">M2</text><text x="330" y="214" font-size="11" fill="#717580">M3</text>
+  </svg><p class="subtle"><span style="color:#2563eb;font-weight:800">Revenue</span> and <span style="color:#22c55e;font-weight:800">profit</span> baseline.</p>`;
+}
+
+function renderCosts(d) {
+  const costs = (d.costMap || []).filter(c => c.a > 0).slice(0, 5);
+  const total = costs.reduce((s, c) => s + c.a, 0) || d.totalCostsM || 1;
+  document.getElementById('costBars').innerHTML = costs.length ? costs.map(c => `<div class="mini-row"><span>${c.n}</span><div class="mini-track"><div class="mini-fill" style="width:${clamp(c.a / total * 100, 4, 100)}%"></div></div><strong>${money(c.a)}</strong></div>`).join('') : '<p class="subtle">No detailed cost split was saved for this calculation.</p>';
+}
+
+function renderWhatIf(d) {
+  baseData = d;
+  document.getElementById('whatIfControls').innerHTML = [
+    ['rev','Revenue change',-50,100,0,5],
+    ['cost','Cost reduction',-50,50,0,5],
+    ['price','Price increase',0,50,0,1],
+  ].map(([id,label,min,max,val,step]) => `<div class="slider-row"><div class="slider-top"><span>${label}</span><span id="${id}Val">+0%</span></div><input id="${id}Slider" type="range" min="${min}" max="${max}" value="${val}" step="${step}" oninput="updateWhatIf()"></div>`).join('');
+  updateWhatIf();
+}
+
+function updateWhatIf() {
+  const d = baseData; if (!d) return;
+  const rev = Number(document.getElementById('revSlider').value);
+  const cost = Number(document.getElementById('costSlider').value);
+  const price = Number(document.getElementById('priceSlider').value);
+  document.getElementById('revVal').textContent = `${rev >= 0 ? '+' : ''}${rev}%`;
+  document.getElementById('costVal').textContent = `${cost >= 0 ? '+' : ''}${cost}%`;
+  document.getElementById('priceVal').textContent = `+${price}%`;
+  const newRev = d.avgRev * (1 + (rev + price) / 100);
+  const newCosts = d.totalCostsM * (1 - cost / 100);
+  const newProfit = newRev - newCosts;
+  const newMargin = newRev > 0 ? newProfit / newRev : 0;
+  const newRunway = newCosts > 0 && d.cash ? d.cash / newCosts : null;
+  const rows = [
+    ['Revenue', money(newRev), newRev - d.avgRev],
+    ['Profit', money(newProfit), newProfit - d.totProfit / 3],
+    ['Net Margin', pct(newMargin), (newMargin - d.netMgn) * 100, 'pp'],
+    ['Runway', newRunway == null ? 'n/a' : `${newRunway.toFixed(1)} mo`, newRunway != null && d.runway != null ? newRunway - d.runway : null, 'mo'],
+  ];
+  document.getElementById('whatIfResults').innerHTML = rows.map(r => {
+    const good = r[2] == null || r[2] >= 0;
+    const delta = r[2] == null ? '' : `${r[2] >= 0 ? '+' : ''}${r[3] ? r[2].toFixed(1) + ' ' + r[3] : money(r[2])}`;
+    return `<div class="scenario"><div class="scenario-label">${r[0]}</div><div class="scenario-value">${r[1]}</div><div class="scenario-delta" style="color:${good ? '#22c55e' : '#ef4444'}">${delta}</div></div>`;
+  }).join('');
+}
+
+function renderActions(d) {
+  const actions = [];
+  if (d.netMgn < 0) actions.push(['bad','Costs exceed revenue. Prioritise your largest monthly cost and decide what can be cut this week.']);
+  else if (d.netMgn < .05) actions.push(['bad','Net margin is thin. Target a 5-10% improvement through pricing or cost control.']);
+  if (d.runway != null && d.runway < 3) actions.push(['warn','Cash runway is short. Chase invoices, pause non-essential spend, and prepare a cash buffer plan.']);
+  if (d.debtRatio > 6) actions.push(['warn','Debt load is high compared with monthly revenue. Consider refinancing or a repayment plan.']);
+  if (d.grossMgn >= .35 && d.netMgn >= .1) actions.push(['','Margins look strong. Consider reinvesting carefully into marketing, automation, or staff training.']);
+  if (!actions.length) actions.push(['','No urgent red flags in the latest snapshot. Keep monitoring margins, cash, and debt monthly.']);
+  document.getElementById('actions').innerHTML = actions.map(a => `<div class="action"><span class="dot ${a[0]}"></span><span>${a[1]}</span></div>`).join('');
+}
+
+function renderDashboard(item) {
+  const d = normaliseSummary(item.summary);
+  document.getElementById('dashTitle').textContent = `Welcome back, ${currentUser.first_name || 'there'}`;
+  document.getElementById('dashSubtitle').textContent = `Latest analysis: ${item.label || d.sector || 'Business snapshot'} · ${item.created_at || ''}`;
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('dashboardContent').classList.remove('hidden');
+  renderHealth(d); renderStats(d); renderTrend(d); renderCosts(d); renderWhatIf(d); renderActions(d);
+}
+
+function setAccountSidebarOpen(open) {
+  document.getElementById('accountSidebar')?.classList.toggle('is-open', open);
+  document.getElementById('accountBackdrop')?.classList.toggle('is-open', open);
+}
+
+function toggleAccountSidebar() {
+  const sidebar = document.getElementById('accountSidebar');
+  setAccountSidebarOpen(!sidebar?.classList.contains('is-open'));
+}
+
+function closeAccountSidebar() {
+  setAccountSidebarOpen(false);
+}
+
+function setHistorySidebarOpen(open) {
+  document.getElementById('historySidebar')?.classList.toggle('is-open', open);
+}
+
+function renderHistoryList(history) {
+  dashboardHistory = history || [];
+  const list = document.getElementById('historyList');
+  const note = document.getElementById('historyPlanNote');
+  if (note) note.textContent = currentUser?.plan === 'paid' ? '' : 'Free - limited';
+  if (!list) return;
+  if (!dashboardHistory.length) {
+    list.innerHTML = '<div class="history-empty">No calculations yet.<br>Your results will appear here.</div>';
+    return;
+  }
+  list.innerHTML = dashboardHistory.map((item, index) => `
+    <div class="history-item" onclick="loadDashboardHistory(${item.id})" title="${item.label || 'Calculation'}">
+      <div class="history-item-num">${index + 1}</div>
+      <div>
+        <div class="history-item-label">${item.label || 'Calculation'}</div>
+        <div class="history-item-date">${item.created_at || ''}</div>
+      </div>
+    </div>`).join('');
+}
+
+function loadDashboardHistory(id) {
+  const item = dashboardHistory.find(entry => entry.id === id);
+  if (!item) return;
+
+  if (item.summary?.inputs) {
+    try {
+      localStorage.setItem('fintori_form_state', JSON.stringify(item.summary.inputs));
+      localStorage.removeItem('fintori_results_html');
+      localStorage.removeItem('fintori_ai_report');
+      localStorage.removeItem('fintori_verdict_data');
+    } catch {}
+  }
+
+  renderDashboard(item);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function logoutUser() {
+  try {
+    await fetch(`${API}/auth/logout`, {
+      method:'POST',
+      credentials:'include',
+      headers:authHeaders(),
+    });
+  } catch {}
+  sessionStorage.removeItem('fintori_auth_token');
+  sessionStorage.removeItem('fintori_user');
+  window.location.href = 'auth.html';
+}
+
+async function loadDashboard() {
+  try {
+    const me = await fetch(`${API}/auth/me`, { credentials:'include', headers:authHeaders() });
+    const meData = await me.json();
+    if (!meData.user) { window.location.href = 'auth.html'; return; }
+    currentUser = meData.user;
+    if (meData.session_token) sessionStorage.setItem('fintori_auth_token', meData.session_token);
+    sessionStorage.setItem('fintori_user', JSON.stringify(meData.user));
+    const accountName = document.getElementById('accountSidebarName');
+    if (accountName) accountName.textContent = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email || 'Your account';
+    const headerUserName = document.getElementById('headerUserName');
+    if (headerUserName) headerUserName.textContent = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email || 'Account';
+    const res = await fetch(`${API}/history`, { credentials:'include', headers:authHeaders() });
+    const data = await res.json();
+    renderHistoryList(data.history || []);
+    const latest = (data.history || [])[0];
+    if (!latest) {
+      document.getElementById('dashTitle').textContent = `Welcome back, ${currentUser.first_name || 'there'}`;
+      document.getElementById('dashSubtitle').textContent = 'Run an analysis to build your business dashboard.';
+      document.getElementById('emptyState').classList.remove('hidden');
+      return;
+    }
+    renderDashboard(latest);
+  } catch {
+    document.getElementById('dashSubtitle').textContent = 'Could not load dashboard data. Make sure the backend is running.';
+    document.getElementById('emptyState').classList.remove('hidden');
+  }
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeAccountSidebar();
+  }
+});
+
+const themeToggle = document.getElementById('themeToggle');
+if (themeToggle) {
+  applyTheme(localStorage.getItem('theme') || 'light');
+  themeToggle.addEventListener('change', () => {
+    applyTheme(themeToggle.checked ? 'dark' : 'light');
+  });
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

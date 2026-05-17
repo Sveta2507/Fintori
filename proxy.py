@@ -570,7 +570,7 @@ def google_callback():
     _login_user(user)
     token = _issue_session_token(user.id)
     # Pass token to frontend via URL fragment (never stored in server logs)
-    return redirect(f"{APP_BASE_URL}/app.html?auth_token={token}")
+    return redirect(f"{APP_BASE_URL}/dashboard.html?auth_token={token}")
 
 
 # ── BANNER DISMISS ────────────────────────────────────────────────────────────
@@ -709,7 +709,12 @@ def history_endpoint(user):
     )
     db.session.add(calc)
     db.session.commit()
-    return jsonify({'id': calc.id, 'label': label}), 201
+    return jsonify({
+        'ok': True,
+        'id': calc.id,
+        'label': label,
+        'history': calc.to_dict(),
+    }), 201
 
 def save_calculation(user):
     data    = request.get_json(silent=True) or {}
@@ -747,11 +752,65 @@ def delete_calculation(user, calc_id):
     db.session.commit()
     return jsonify({'ok': True})
 
+@app.route('/history/<int:calc_id>/ai-report', methods=['PATCH', 'OPTIONS'])
+@require_auth
+def update_calculation_ai_report(user, calc_id):
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    calc = Calculation.query.filter_by(id=calc_id, user_id=user.id).first()
+    if not calc:
+        return jsonify({'error': 'Not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    ai_report = data.get('ai_report')
+
+    if not isinstance(ai_report, dict):
+        return jsonify({'error': 'Invalid ai_report'}), 400
+
+    try:
+        summary = json.loads(calc.summary_json or '{}')
+    except Exception:
+        summary = {}
+
+    summary['ai_report'] = ai_report
+    calc.summary_json = json.dumps(summary)
+
+    db.session.commit()
+
+    return jsonify({
+        'ok': True,
+        'id': calc.id,
+        'label': calc.label,
+        'history': calc.to_dict(),
+    })
+
 
 def _build_calc_label(summary: dict) -> str:
-    rev    = summary.get('avgRev', 0)
-    margin = summary.get('netMgn', 0)
-    sector = summary.get('sector', '')
+    inputs = summary.get('inputs') if isinstance(summary.get('inputs'), dict) else None
+    if inputs:
+        def n(key):
+            try:
+                return float(inputs.get(key) or 0)
+            except (TypeError, ValueError):
+                return 0
+
+        vat = 1.2 if inputs.get('vatReg') else 1
+        r1, r2, r3 = n('r1') / vat, n('r2') / vat, n('r3') / vat
+        total_revenue = r1 + r2 + r3
+        rev = total_revenue / 3 if total_revenue else 0
+        monthly_costs = (
+            n('cogs') + n('dlab') + n('rent') + n('wages') + n('nic') +
+            n('loan') + n('util') + n('ins') + n('mkt') + n('prof') +
+            n('sw') + n('other')
+        )
+        profit = total_revenue - monthly_costs * 3
+        margin = profit / total_revenue if total_revenue else 0
+        sector = inputs.get('sector', '')
+    else:
+        rev    = summary.get('avgRev', 0)
+        margin = summary.get('netMgn', 0)
+        sector = summary.get('sector', '')
     rev_str    = f"£{int(rev):,}/mo" if rev else ''
     margin_str = f"{margin*100:.1f}% margin" if margin else ''
     parts = [p for p in [sector.title(), rev_str, margin_str] if p]
@@ -955,6 +1014,7 @@ def render_pdf():
     response.headers['Content-Type']        = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
 
 
 # ── UPGRADE / SUBSCRIPTION ────────────────────────────────────────────────────

@@ -25,6 +25,7 @@ const OUT  = join(DIST, 'app.js');
 
 const STATIC_FILES = [
   'app.html',
+  'dashboard.html',
   'index.html',
   'auth.html',
   'pricing.html',

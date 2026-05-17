@@ -155,6 +155,37 @@
   [data-theme="dark"] .logo-tag {
     color: rgba(255, 255, 255, 0.82);
   }
+  #healthScoreCard,
+  #whatIfCard,
+  .health-score-card,
+  .what-if-card {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .app-dashboard-widget-disabled,
+  #healthScoreCard,
+  #whatIfCard {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
   @media (max-width: 820px) {
     header { padding: 14px 18px; }
   }
@@ -235,6 +266,7 @@
         <i class="fas fa-sun toggle-icon" aria-hidden="true"></i>
       </label>
     </div>
+    <a href="dashboard.html"><i class="fas fa-gauge-high"></i><span>Dashboard</span></a>
     <a href="settings.html"><i class="fas fa-gear"></i><span>Settings</span></a>
     <a href="pricing.html"><i class="fas fa-tags"></i><span>Pricing & Plans</span></a>
     <a href="payment.html"><i class="fas fa-credit-card"></i><span>Payment</span></a>
@@ -515,36 +547,20 @@
     </div>
   </div>
 
-  <!-- BUSINESS HEALTH SCORE (Pro only) -->
-  <div id="healthScoreCard" class="card health-score-card" style="display:none">
-    <div class="card-hdr"><div class="cicon">🏆</div><h2>Business Health Score</h2>
-      <span class="pro-badge"><i class="fas fa-star"></i> Pro</span>
-    </div>
-    <div class="health-score-body">
-      <div class="health-score-dial-wrap">
-        <svg viewBox="0 0 120 70" class="health-score-svg">
-          <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="var(--border,#e2e6ef)" stroke-width="12" stroke-linecap="round"/>
-          <path id="healthScoreArc" d="M10 60 A50 50 0 0 1 110 60" fill="none"
-                stroke="#22c55e" stroke-width="12" stroke-linecap="round"
-                stroke-dasharray="157" stroke-dashoffset="157"/>
-        </svg>
-        <div class="health-score-number" id="healthScoreNumber">—</div>
-        <div class="health-score-label" id="healthScoreLabel">Calculating…</div>
-      </div>
-      <div class="health-score-breakdown" id="healthScoreBreakdown"></div>
-    </div>
+
+  <!-- Dashboard-only widgets disabled on app results page  -->
+  <div id="healthScoreCard" class="health-score-card app-dashboard-widget-disabled" hidden aria-hidden="true" style="display:none!important">
+    <svg width="0" height="0" style="display:none!important">
+      <path id="healthScoreArc"></path>
+    </svg>
+    <div id="healthScoreNumber">—</div>
+    <div id="healthScoreLabel">Hidden</div>
+    <div id="healthScoreBreakdown"></div>
   </div>
 
-  <!-- WHAT-IF TOOL (Pro only, excluded from PDF) -->
-  <div id="whatIfCard" class="card what-if-card no-print" style="display:none">
-    <div class="card-hdr"><div class="cicon">🔮</div><h2>What-If Scenarios</h2>
-      <span class="pro-badge"><i class="fas fa-star"></i> Pro</span>
-    </div>
-    <div class="what-if-body">
-      <p class="what-if-desc">Adjust key variables to see how changes affect your results in real time.</p>
-      <div class="what-if-sliders" id="whatIfSliders"></div>
-      <div class="what-if-results" id="whatIfResults"></div>
-    </div>
+  <div id="whatIfCard" class="what-if-card app-dashboard-widget-disabled no-print" hidden aria-hidden="true" style="display:none!important">
+    <div id="whatIfSliders"></div>
+    <div id="whatIfResults"></div>
   </div>
 
   <!-- 2. KPI SUMMARY -->

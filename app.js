@@ -1,6 +1,7 @@
 // ── AUTH STATE ────────────────────────────────────────────────────────
 // Single source of truth for the logged-in user
 let _currentUser = null;
+let _currentHistoryId = null;
 
 function getApiBase() {
   if (window.FINTORI_API_BASE) return String(window.FINTORI_API_BASE).replace(/\/+$/, '');
@@ -206,7 +207,10 @@ function renderHistorySidebar(history) {
     return;
   }
 
-  window.__fintoriHistorySummaries = new Map(history.map(c => [c.id, c.summary]));
+  window.__fintoriHistorySummaries = new Map(history.map(c => [
+    c.id,
+    { ...(c.summary || {}), _history_id: c.id }
+  ]));
   list.innerHTML = history.map((c, i) => `
     <div class="history-item" title="${c.label}" onclick="loadHistoryItemById(${c.id})">
       <div class="history-item-num">${i + 1}</div>
@@ -220,6 +224,7 @@ function renderHistorySidebar(history) {
 }
 
 function loadHistoryItemById(id) {
+  _currentHistoryId = id;
   const summary = window.__fintoriHistorySummaries?.get(id);
   loadHistoryItem(summary);
 }
@@ -227,6 +232,8 @@ function loadHistoryItemById(id) {
 function loadHistoryItem(summary) {
   if (!summary) return;
   closeHistorySidebar();
+
+  if (restoreHistoryInputs(summary)) return;
 
   if (restoreHistoryResults(summary)) return;
 
@@ -241,13 +248,80 @@ function loadHistoryItem(summary) {
   );
 }
 
+function captureHistoryInputs() {
+  const inputs = {};
+  HISTORY_INPUT_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    inputs[id] = el.type === 'checkbox' ? !!el.checked : el.value;
+  });
+  inputs.vatReg = !!document.getElementById('vatReg')?.checked;
+  return inputs;
+}
+
+function restoreHistoryInputs(summary) {
+  if (!summary || !summary.inputs) return false;
+  HISTORY_INPUT_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && Object.prototype.hasOwnProperty.call(summary.inputs, id)) {
+      el.value = summary.inputs[id];
+    }
+  });
+  const vat = document.getElementById('vatReg');
+  if (vat && Object.prototype.hasOwnProperty.call(summary.inputs, 'vatReg')) {
+    vat.checked = !!summary.inputs.vatReg;
+  }
+  syncMoreFieldsForInputs(summary.inputs);
+  try {
+    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(summary.inputs));
+    localStorage.removeItem(RESULTS_STORAGE_KEY);
+    localStorage.removeItem(AI_REPORT_KEY);
+    localStorage.removeItem(VERDICT_DATA_KEY);
+  } catch(e) {}
+  window.__loadingHistoryItem = true;
+  render();
+  window.__loadingHistoryItem = false;
+
+  if (summary.ai_report) {
+    try {
+      localStorage.setItem(AI_REPORT_KEY, JSON.stringify(summary.ai_report));
+    } catch {}
+
+    renderSavedVerdictAI(summary.ai_report);
+  }
+
+  showToast('History result loaded.', true);
+  return true;
+}
+
+function syncMoreFieldsForInputs(inputs) {
+  const optionalIds = ['util','ins','mkt','prof','sw','other'];
+  const shouldOpen = optionalIds.some(id => Number(inputs?.[id] || 0) > 0);
+  const fields = document.getElementById('moreFields');
+  const btn = document.getElementById('moreBtn');
+  if (!fields || !btn) return;
+  fields.classList.toggle('open', shouldOpen);
+  btn.innerHTML = shouldOpen
+    ? '<i class="fas fa-minus"></i> Hide more expenses'
+    : '<i class="fas fa-plus"></i> Add more expenses';
+  if (shouldOpen) {
+    requestAnimationFrame(syncMoreFieldsHeight);
+    window.setTimeout(syncMoreFieldsHeight, 180);
+  }
+}
+
 function restoreHistoryResults(summary) {
   const results = document.getElementById('results');
   if (!results || !summary || !summary.results_html) return false;
 
   results.innerHTML = summary.results_html;
+  restoreRotatingAIButton();
+
   results.style.display = 'grid';
-  requestAnimationFrame(() => results.classList.add('is-open'));
+  requestAnimationFrame(() => {
+    results.classList.add('is-open');
+    restoreRotatingAIButton();
+  });
 
   try {
     localStorage.setItem(RESULTS_STORAGE_KEY, summary.results_html);
@@ -304,9 +378,10 @@ async function deleteHistoryItem(id, btn) {
 }
 
 async function saveCalcToHistory(summary) {
-  if (!_currentUser) return;
+  if (!_currentUser) return null;
+
   try {
-    await fetch(`${getApiBase()}/history`, {
+    const res = await fetch(`${getApiBase()}/history`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -315,6 +390,36 @@ async function saveCalcToHistory(summary) {
       },
       body: JSON.stringify({ summary }),
     });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (data.id) {
+      _currentHistoryId = data.id;
+    } else if (data.history?.id) {
+      _currentHistoryId = data.history.id;
+    }
+
+    loadHistory();
+    return _currentHistoryId;
+  } catch {
+    return null;
+  }
+}
+
+async function updateCurrentHistoryAIReport(aiReport) {
+  if (!_currentUser || !_currentHistoryId || !aiReport) return;
+
+  try {
+    await fetch(`${getApiBase()}/history/${_currentHistoryId}/ai-report`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': sessionStorage.getItem('fintori_auth_token') || '',
+      },
+      body: JSON.stringify({ ai_report: aiReport }),
+    });
+
     loadHistory();
   } catch {}
 }
@@ -533,6 +638,7 @@ const RESULTS_STORAGE_KEY='fintori_results_html';
 const FORM_STORAGE_KEY='fintori_form_state';
 const AI_REPORT_KEY='fintori_ai_report';
 const VERDICT_DATA_KEY='fintori_verdict_data';
+const HISTORY_INPUT_IDS=['r1','r2','r3','cogs','dlab','rent','wages','nic','loan','util','ins','mkt','prof','sw','other','cash','debtors','creditors','debt','stock','emp','sector'];
 
 function saveResultsSnapshot(){
   const results=document.getElementById('results');
@@ -545,6 +651,7 @@ function restoreResultsSnapshot(){
   const saved=localStorage.getItem(RESULTS_STORAGE_KEY);
   if(!results || !saved) return false;
   results.innerHTML=saved;
+  restoreRotatingAIButton();
   // Restore AI report only if its fingerprint matches the saved calc fingerprint.
   // Prevents a stale AI report from a previous calculation appearing alongside
   // results that belong to different numbers.
@@ -1177,21 +1284,12 @@ function render(){
   renderHealthScore(d);
   renderWhatIf(d);
 
-  // Save calculation to server history
-  saveCalcToHistory({
-    avgRev:      Math.round(d.avgRev),
-    totProfit:   Math.round(d.totProfit),
-    netMgn:      +d.netMgn.toFixed(4),
-    grossMgn:    +d.grossMgn.toFixed(4),
-    totalCostsM: Math.round(d.totalCostsM),
-    sector:      d.sector,
-    runway:      d.runway !== null ? +d.runway.toFixed(2) : null,
-    wcr:         d.wcr    !== null ? +d.wcr.toFixed(2)    : null,
-    debtRatio:   +d.debtRatio.toFixed(2),
-    results_html: document.getElementById('results')?.innerHTML || '',
-    verdict_data: { ...d, _fp: calcFp },
-    calc_fp: calcFp,
-  });
+  // Save compact user inputs to history. Results are recalculated when opened.
+  if (!window.__loadingHistoryItem) {
+    saveCalcToHistory({
+      inputs: captureHistoryInputs(),
+    });
+  }
   // Show upgrade nudge on AI/PDF buttons for free users who've used their trial
   if (_currentUser && _currentUser.plan === 'free') {
     if (_currentUser.ai_remaining <= 0) {
@@ -1238,10 +1336,14 @@ function resetVerdictAI(){
   const loading = document.getElementById('verdictAILoading');
   const content = document.getElementById('verdictAIContent');
   if(trigger){
+    trigger.classList.add('verdict-ai-trigger', 'rotating-cta');
     trigger.classList.remove('is-hidden');
     trigger.classList.remove('is-busy');
     trigger.disabled = false;
     trigger.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i><span>Generate AI Report</span>';
+    trigger.setAttribute('onclick', 'requestVerdictAI()');
+    trigger.style.setProperty('--angle', `${fintoriRotatingCtaAngle}deg`);
+    startRotatingCtas();
   }
   if(loading){
     loading.style.display = 'none';
@@ -1419,6 +1521,47 @@ async function callClaudeAPI(prompt) {
   return data.content[0].text;
 }
 
+function renderSavedVerdictAI(aiReport) {
+  if (!aiReport) return;
+
+  const content  = document.getElementById('verdictAIContent');
+  const trigger  = document.getElementById('verdictAITrigger');
+  const loading  = document.getElementById('verdictAILoading');
+  const vProblem = document.getElementById('vai_problem');
+  const vOpp     = document.getElementById('vai_opportunity');
+  const vSteps   = document.getElementById('vai_steps');
+
+  if (!content) return;
+
+  if (vProblem) {
+    vProblem.innerHTML =
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-xmark"></i> Main Problem</span><div class="verdict-ai-body">${sanitize(aiReport.problem || '')}</div>`;
+  }
+
+  if (vOpp) {
+    vOpp.innerHTML =
+      `<span class="verdict-ai-ttl"><i class="fas fa-circle-check"></i> Main Opportunity</span><div class="verdict-ai-body">${sanitize(aiReport.opportunity || '')}</div>`;
+  }
+
+  if (vSteps) {
+    const steps = Array.isArray(aiReport.steps) ? aiReport.steps : [];
+    vSteps.innerHTML =
+      `<span class="verdict-ai-ttl"><i class="fas fa-arrow-right"></i> Next Steps</span><ol class="verdict-ai-steps">${steps.map(s => `<li><span>${sanitize(s)}</span></li>`).join('')}</ol>`;
+  }
+
+  if (loading) loading.style.display = 'none';
+
+  if (trigger) {
+    trigger.classList.remove('is-busy');
+    trigger.classList.add('is-hidden');
+  }
+
+  content.classList.add('ready');
+  content.style.maxHeight = 'none';
+
+  requestAnimationFrame(() => syncVerdictAIHeight());
+}
+
 function renderMetricAI(el, rawText) {
   try {
     const clean = rawText.replace(/```json|```/g, '').trim();
@@ -1475,7 +1618,10 @@ Reply ONLY in this JSON:
     // Also update fintori_calc_fp so the restore guard accepts it.
     try {
       const currentFp = localStorage.getItem('fintori_calc_fp') || '';
-      localStorage.setItem(AI_REPORT_KEY, JSON.stringify({ ...j, _fp: currentFp }));
+      const savedAIReport = { ...j, _fp: currentFp };
+
+      localStorage.setItem(AI_REPORT_KEY, JSON.stringify(savedAIReport));
+      updateCurrentHistoryAIReport(savedAIReport);
     } catch(e){}
     requestAnimationFrame(() => {
       syncVerdictAIHeight();
@@ -2525,21 +2671,45 @@ async function exportReport(){
 window.addEventListener('resize', syncBenchFillHeight);
 window.addEventListener('resize', syncVerdictAIHeight);
 
+let fintoriRotatingCtaFrame = null;
+let fintoriRotatingCtaAngle = 0;
+
+function startRotatingCtas() {
+  if (fintoriRotatingCtaFrame) return;
+
+  const rotateBorder = () => {
+    fintoriRotatingCtaAngle = (fintoriRotatingCtaAngle + 1) % 360;
+
+    document.querySelectorAll('.rotating-cta').forEach(btn => {
+      btn.style.setProperty('--angle', `${fintoriRotatingCtaAngle}deg`);
+    });
+
+    fintoriRotatingCtaFrame = requestAnimationFrame(rotateBorder);
+  };
+
+  rotateBorder();
+}
+
+function restoreRotatingAIButton() {
+  const btn = document.getElementById('verdictAITrigger');
+  if (!btn) return;
+
+  btn.classList.add('verdict-ai-trigger', 'rotating-cta');
+
+  if (!btn.getAttribute('onclick')) {
+    btn.setAttribute('onclick', 'requestVerdictAI()');
+  }
+
+  btn.style.setProperty('--angle', `${fintoriRotatingCtaAngle}deg`);
+  startRotatingCtas();
+}
+
 // ── BOOT ─────────────────────────────────────────────────────────────
 // initAuth проверяет сессию, редиректит на auth.html если не залогинен,
 // затем запускает всю инициализацию приложения
 document.addEventListener('DOMContentLoaded', async () => {
   // Анимация rotating-cta (если есть на странице)
-  const rotatingButtons = document.querySelectorAll('.rotating-cta');
-  if (rotatingButtons.length) {
-    let angle = 0;
-    const rotateBorder = () => {
-      angle = (angle + 1) % 360;
-      rotatingButtons.forEach(b => b.style.setProperty('--angle', `${angle}deg`));
-      requestAnimationFrame(rotateBorder);
-    };
-    rotateBorder();
-  }
+  startRotatingCtas();
 
   // Проверка авторизации — если не залогинен, initAuth сделает редирект
   await initAuth();

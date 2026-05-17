@@ -977,7 +977,7 @@ async function submitLogin() {
     // Store auth token in sessionStorage for API calls
     sessionStorage.setItem('fintori_auth_token', data.session_token);
     sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
-    window.location.href = 'app.html';
+    window.location.href = 'dashboard.html';
   } catch {
     const errBox = document.getElementById('loginError');
     const message = 'Network error. Please try again.';
@@ -1031,7 +1031,7 @@ async function submitRegister() {
     }
     sessionStorage.setItem('fintori_auth_token', data.session_token);
     sessionStorage.setItem('fintori_user', JSON.stringify(data.user));
-    window.location.href = 'app.html';
+    window.location.href = 'dashboard.html';
   } catch {
     const errBox = document.getElementById('registerError');
     const message = 'Network error. Please try again.';
